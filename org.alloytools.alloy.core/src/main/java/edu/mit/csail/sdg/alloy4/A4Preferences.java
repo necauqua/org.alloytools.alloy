@@ -553,9 +553,6 @@ public class A4Preferences {
     /** The latest welcome screen that the user has seen. */
     public static final BooleanPref                  Welcome                = new BooleanPref("Welcome", "Show welcome message at start up");
 
-    /** Look and feel */
-    public static final StringChoicePref             LAF                    = new StringChoicePref("LAF", "Look and feel", Arrays.asList("Native", "Cross-platform"), Util.onMac() || Util.onWindows() ? "Native" : "Cross-platform");
-
     /** The number of recursion unrolls. */
     public static final IntChoicePref                Unrolls                = new IntChoicePref("Unrolls", "Recursion depth", Arrays.asList(-1, 0, 1, 2, 3), -1) {
 

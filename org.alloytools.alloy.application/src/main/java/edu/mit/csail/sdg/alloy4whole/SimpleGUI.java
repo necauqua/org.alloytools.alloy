@@ -26,7 +26,6 @@ import static edu.mit.csail.sdg.alloy4.A4Preferences.FontName;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.FontSize;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.ImplicitThis;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.InferPartialInstance;
-import static edu.mit.csail.sdg.alloy4.A4Preferences.LAF;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.Model0;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.Model1;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.Model2;
@@ -965,28 +964,6 @@ public final class SimpleGUI implements ComponentListener, Listener {
         return null;
     }
 
-    /**
-     * This method applies the look and feel stored in a user preference. Default
-     * look and feel for Mac and Windows computers is "Native", and for other is
-     * "Cross-platform".
-     */
-    private Runner doLookAndFeel() {
-        if (wrap)
-            return wrapMe();
-        try {
-            if ("Native".equals(LAF.get())) {
-                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-            } else {
-                UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName());
-            }
-            SwingUtilities.updateComponentTreeUI(frame);
-            SwingUtilities.updateComponentTreeUI(prefDialog);
-            SwingUtilities.updateComponentTreeUI(viz.getFrame());
-        } catch (Throwable e) {
-        }
-        return null;
-    }
-
     /** This method performs Edit->Goto. */
     private Runner doGoto() {
         if (wrap)
@@ -1408,7 +1385,6 @@ public final class SimpleGUI implements ComponentListener, Listener {
             addToMenu(optmenu, FontSize);
             menuItem(optmenu, "Font: " + FontName.get() + "...", doOptFontname());
             addToMenu(optmenu, TabSize);
-            addToMenu(optmenu, A4Preferences.LAF);
 
             optmenu.addSeparator();
 
@@ -1969,7 +1945,22 @@ public final class SimpleGUI implements ComponentListener, Listener {
             }
         }
 
-        doLookAndFeel();
+        try {
+            String systemLaf = UIManager.getSystemLookAndFeelClassName();
+            if (systemLaf.equals("javax.swing.plaf.metal.MetalLookAndFeel")) {
+                // metal is old, ugly, outdated and also the default one,
+                // and most likely your linux would return this instead of GTK
+                // even if you have it installed
+                // so we just try to silently set the gtk laf
+                try {
+                    UIManager.setLookAndFeel("com.sun.java.swing.plaf.gtk.GTKLookAndFeel");
+                } catch (Throwable throwable) {
+                }
+            } else {
+                UIManager.setLookAndFeel(systemLaf);
+            }
+        } catch (Throwable e) {
+        }
 
         // Figure out the desired x, y, width, and height
         int screenWidth = OurUtil.getScreenWidth(), screenHeight = OurUtil.getScreenHeight();
@@ -2214,7 +2205,6 @@ public final class SimpleGUI implements ComponentListener, Listener {
         try {
             wrap = true;
             prefDialog.addChangeListener(wrapToChangeListener(doOptRefreshFont()), FontName, FontSize, TabSize);
-            prefDialog.addChangeListener(wrapToChangeListener(doLookAndFeel()), LAF);
         } finally {
             wrap = false;
         }
