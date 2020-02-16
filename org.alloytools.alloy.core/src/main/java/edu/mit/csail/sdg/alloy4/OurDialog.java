@@ -91,7 +91,7 @@ public final class OurDialog {
         objs[objs.length - 1] = OurUtil.makeH(null, dismiss, null);
         JOptionPane about = new JOptionPane(objs, JOptionPane.PLAIN_MESSAGE, JOptionPane.DEFAULT_OPTION, null, new Object[] {});
         JDialog dialog = about.createDialog(null, title);
-        dismiss.addActionListener(Runner.createDispose(dialog));
+        dismiss.addActionListener(e -> dialog.dispose());
         dialog.setAlwaysOnTop(true);
         dialog.setVisible(true);
         dialog.dispose();
@@ -374,10 +374,10 @@ public final class OurDialog {
     }
 
     /** Display a simple non-modal window showing some text. */
-    public static JFrame showtext(String title, String text) {
+    public static void showText(String title, String text) {
         JFrame window = new JFrame(title);
         JButton done = new JButton("Close");
-        done.addActionListener(Runner.createDispose(window));
+        done.addActionListener(e -> window.dispose());
         JScrollPane scrollPane = OurUtil.scrollpane(OurUtil.textarea(text, 20, 60, false, false));
         window.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
         window.getContentPane().setLayout(new BorderLayout());
@@ -387,6 +387,5 @@ public final class OurDialog {
         window.setSize(500, 500);
         window.setLocationRelativeTo(null);
         window.setVisible(true);
-        return window;
     }
 }

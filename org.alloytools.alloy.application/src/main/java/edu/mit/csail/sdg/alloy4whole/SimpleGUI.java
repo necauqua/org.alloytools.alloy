@@ -57,10 +57,7 @@ import java.awt.Desktop;
 import java.awt.Font;
 import java.awt.GraphicsEnvironment;
 import java.awt.Toolkit;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.ComponentEvent;
-import java.awt.event.ComponentListener;
+import java.awt.event.*;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -105,9 +102,7 @@ import javax.swing.UIManager;
 import javax.swing.WindowConstants;
 import javax.swing.border.EmptyBorder;
 import javax.swing.border.LineBorder;
-import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
-import javax.swing.event.HyperlinkEvent;
 import javax.swing.event.HyperlinkEvent.EventType;
 import javax.swing.event.HyperlinkListener;
 import javax.swing.plaf.FontUIResource;
@@ -145,7 +140,6 @@ import edu.mit.csail.sdg.alloy4.OurTree;
 import edu.mit.csail.sdg.alloy4.OurUtil;
 import edu.mit.csail.sdg.alloy4.Pair;
 import edu.mit.csail.sdg.alloy4.Pos;
-import edu.mit.csail.sdg.alloy4.Runner;
 import edu.mit.csail.sdg.alloy4.Util;
 import edu.mit.csail.sdg.alloy4.Version;
 import edu.mit.csail.sdg.alloy4.WorkerEngine;
@@ -325,12 +319,6 @@ public final class SimpleGUI implements ComponentListener, Listener {
      */
     private String                latestAutoInstance     = "";
 
-    /**
-     * If true, that means the event handlers should return a Runner encapsulating
-     * them, rather than perform the actual work.
-     */
-    private boolean               wrap                   = false;
-
     /** The preferences dialog. */
     private PreferencesDialog     prefDialog;
 
@@ -358,11 +346,8 @@ public final class SimpleGUI implements ComponentListener, Listener {
     }
 
     /** Sets the flag "lastFocusIsOnEditor" to be true. */
-    private Runner notifyFocusGained() {
-        if (wrap)
-            return wrapMe();
+    private void notifyFocusGained() {
         lastFocusIsOnEditor = true;
-        return null;
     }
 
     /** Sets the flag "lastFocusIsOnEditor" to be false. */
@@ -371,12 +356,10 @@ public final class SimpleGUI implements ComponentListener, Listener {
     }
 
     /** Updates the status bar at the bottom of the screen. */
-    private Runner notifyChange() {
-        if (wrap)
-            return wrapMe();
+    private void notifyChange() {
         commands = null;
         if (text == null)
-            return null; // If this was called prior to the "text" being fully
+            return; // If this was called prior to the "text" being fully
                         // initialized
         OurSyntaxWidget t = text.get();
         if (Util.onMac())
@@ -390,7 +373,6 @@ public final class SimpleGUI implements ComponentListener, Listener {
         int y = t.getLineOfOffset(c) + 1;
         int x = c - t.getLineStartOffset(y - 1) + 1;
         status.setText("<html>&nbsp; Line " + y + ", Column " + x + (t.modified() ? " <b style=\"color:#B43333;\">[modified]</b></html>" : "</html>"));
-        return null;
     }
 
     /**
@@ -481,90 +463,6 @@ public final class SimpleGUI implements ComponentListener, Listener {
     /** Called when this window is hidden. */
     @Override
     public void componentHidden(ComponentEvent e) {
-    }
-
-    /**
-     * Wraps the calling method into a Runnable whose run() will call the calling
-     * method with (false) as the only argument.
-     */
-    private Runner wrapMe() {
-        final String name;
-        try {
-            throw new Exception();
-        } catch (Exception ex) {
-            name = ex.getStackTrace()[1].getMethodName();
-        }
-        Method[] methods = getClass().getDeclaredMethods();
-        Method m = null;
-        for (int i = 0; i < methods.length; i++)
-            if (methods[i].getName().equals(name)) {
-                m = methods[i];
-                break;
-            }
-        final Method method = m;
-        return new Runner() {
-
-            private static final long serialVersionUID = 0;
-
-            @Override
-            public void run() {
-                try {
-                    method.setAccessible(true);
-                    method.invoke(SimpleGUI.this, new Object[] {});
-                } catch (Throwable ex) {
-                    ex = new IllegalArgumentException("Failed call to " + name + "()", ex);
-                    Thread.getDefaultUncaughtExceptionHandler().uncaughtException(Thread.currentThread(), ex);
-                }
-            }
-
-            @Override
-            public void run(Object arg) {
-                run();
-            }
-        };
-    }
-
-    /**
-     * Wraps the calling method into a Runnable whose run() will call the calling
-     * method with (false,argument) as the two arguments.
-     */
-    private Runner wrapMe(final Object argument) {
-        final String name;
-        try {
-            throw new Exception();
-        } catch (Exception ex) {
-            name = ex.getStackTrace()[1].getMethodName();
-        }
-        Method[] methods = getClass().getDeclaredMethods();
-        Method m = null;
-        for (int i = 0; i < methods.length; i++)
-            if (methods[i].getName().equals(name)) {
-                m = methods[i];
-                break;
-            }
-        final Method method = m;
-        return new Runner() {
-
-            private static final long serialVersionUID = 0;
-
-            @Override
-            public void run(Object arg) {
-                try {
-                    method.setAccessible(true);
-                    method.invoke(SimpleGUI.this, new Object[] {
-                                                                arg
-                    });
-                } catch (Throwable ex) {
-                    ex = new IllegalArgumentException("Failed call to " + name + "(" + arg + ")", ex);
-                    Thread.getDefaultUncaughtExceptionHandler().uncaughtException(Thread.currentThread(), ex);
-                }
-            }
-
-            @Override
-            public void run() {
-                run(argument);
-            }
-        };
     }
 
     /**
@@ -672,79 +570,62 @@ public final class SimpleGUI implements ComponentListener, Listener {
     // ===============================================================================================================//
 
     /** This method refreshes the "file" menu. */
-    private Runner doRefreshFile() {
-        if (wrap)
-            return wrapMe();
-        try {
-            wrap = true;
-            filemenu.removeAll();
-            menuItem(filemenu, "New", 'N', 'N', doNew());
-            menuItem(filemenu, "Open...", 'O', 'O', doOpen());
-            if (!Util.onMac())
-                menuItem(filemenu, "Open Sample Models...", VK_ALT, 'O', doBuiltin());
-            else
-                menuItem(filemenu, "Open Sample Models...", doBuiltin());
-            JMenu recentmenu;
-            filemenu.add(recentmenu = new JMenu("Open Recent"));
-            menuItem(filemenu, "Reload all", 'R', 'R', doReloadAll());
-            menuItem(filemenu, "Save", 'S', 'S', doSave());
-            if (Util.onMac())
-                menuItem(filemenu, "Save As...", VK_SHIFT, 'S', doSaveAs());
-            else
-                menuItem(filemenu, "Save As...", 'A', doSaveAs());
-            menuItem(filemenu, "Close", 'W', 'W', doClose());
-            menuItem(filemenu, "Clear Temporary Directory", doClearTemp());
-            menuItem(filemenu, "Quit", 'Q', (Util.onMac() ? -1 : 'Q'), doQuit());
-            boolean found = false;
-            for (StringPref p : new StringPref[] {
-                                                  Model0, Model1, Model2, Model3
-            }) {
-                String name = p.get();
-                if (name.length() > 0) {
-                    found = true;
-                    menuItem(recentmenu, name, doOpenFile(name));
-                }
+    private void doRefreshFile() {
+        filemenu.removeAll();
+        menuItem(filemenu, "New", 'N', 'N', (ActionListener) e -> doNew());
+        menuItem(filemenu, "Open...", 'O', 'O', (ActionListener) e -> doOpen());
+        if (!Util.onMac())
+            menuItem(filemenu, "Open Sample Models...", VK_ALT, 'O', (ActionListener) e -> doBuiltin());
+        else
+            menuItem(filemenu, "Open Sample Models...", (ActionListener) e -> doBuiltin());
+        JMenu recentmenu;
+        filemenu.add(recentmenu = new JMenu("Open Recent"));
+        menuItem(filemenu, "Reload all", 'R', 'R', (ActionListener) e -> doReloadAll());
+        menuItem(filemenu, "Save", 'S', 'S', (ActionListener) e -> doSave());
+        if (Util.onMac())
+            menuItem(filemenu, "Save As...", VK_SHIFT, 'S', (ActionListener) e -> doSaveAs());
+        else
+            menuItem(filemenu, "Save As...", 'A', (ActionListener) e -> doSaveAs());
+        menuItem(filemenu, "Close", 'W', 'W', (ActionListener) e -> doClose());
+        menuItem(filemenu, "Clear Temporary Directory", (ActionListener) e -> doClearTemp());
+        menuItem(filemenu, "Quit", 'Q', (Util.onMac() ? -1 : 'Q'), (ActionListener) e -> doQuit());
+        boolean found = false;
+        for (StringPref p : new StringPref[] {
+                                              Model0, Model1, Model2, Model3
+        }) {
+            String name = p.get();
+            if (name.length() > 0) {
+                found = true;
+                menuItem(recentmenu, name, (ActionListener) e -> doOpenFile(name));
             }
-            recentmenu.addSeparator();
-            menuItem(recentmenu, "Clear Menu", doClearRecent());
-            recentmenu.setEnabled(found);
-        } finally {
-            wrap = false;
         }
-        return null;
+        recentmenu.addSeparator();
+        menuItem(recentmenu, "Clear Menu", (ActionListener) e -> doClearRecent());
+        recentmenu.setEnabled(found);
     }
 
     /** This method performs File->New. */
-    private Runner doNew() {
-        if (!wrap) {
-            text.newtab(null);
-            notifyChange();
-            doShow();
-        }
-        return wrapMe();
+    private void doNew() {
+        text.newtab(null);
+        notifyChange();
+        doShow();
     }
 
     /** This method performs File->Open. */
-    private Runner doOpen() {
-        if (wrap)
-            return wrapMe();
+    private void doOpen() {
         File file = getFile(null);
         if (file != null) {
             Util.setCurrentDirectory(file.getParentFile());
             doOpenFile(file.getPath());
         }
-        return null;
     }
 
     /** This method performs File->OpenBuiltinModels. */
-    private Runner doBuiltin() {
-        if (wrap)
-            return wrapMe();
+    private void doBuiltin() {
         File file = getFile(alloyHome() + fs + "models");
         if (file != null) {
             doOpenFile(file.getPath());
         }
-        return null;
     }
 
     private File getFile(String home) {
@@ -755,163 +636,126 @@ public final class SimpleGUI implements ComponentListener, Listener {
     }
 
     /** This method performs File->ReloadAll. */
-    private Runner doReloadAll() {
-        if (!wrap)
-            text.reloadAll();
-        return wrapMe();
+    private void doReloadAll() {
+        text.reloadAll();
     }
 
     /** This method performs File->ClearRecentFiles. */
-    private Runner doClearRecent() {
-        if (!wrap) {
-            Model0.set("");
-            Model1.set("");
-            Model2.set("");
-            Model3.set("");
-        }
-        return wrapMe();
+    private void doClearRecent() {
+        Model0.set("");
+        Model1.set("");
+        Model2.set("");
+        Model3.set("");
     }
 
     /** This method performs File->Save. */
-    private Runner doSave() {
-        if (!wrap) {
-            String ans = text.save(false);
-            if (ans == null)
-                return null;
-            notifyChange();
-            addHistory(ans);
-            log.clearError();
-        }
-        return wrapMe();
+    private void doSave() {
+        String ans = text.save(false);
+        if (ans == null)
+            return;
+        notifyChange();
+        addHistory(ans);
+        log.clearError();
     }
 
     /** This method performs File->SaveAs. */
-    private Runner doSaveAs() {
-        if (!wrap) {
-            String ans = text.save(true);
-            if (ans == null)
-                return null;
-            notifyChange();
-            addHistory(ans);
-            log.clearError();
-        }
-        return wrapMe();
+    private void doSaveAs() {
+        String ans = text.save(true);
+        if (ans == null)
+            return;
+        notifyChange();
+        addHistory(ans);
+        log.clearError();
     }
 
     /**
      * This method clears the temporary files and then reinitialize the temporary
      * directory.
      */
-    private Runner doClearTemp() {
-        if (!wrap) {
-            clearTemporarySpace();
-            copyFromJAR();
-            log.logBold("Temporary directory has been cleared.\n\n");
-            log.logDivider();
-            log.flush();
-        }
-        return wrapMe();
+    private void doClearTemp() {
+        clearTemporarySpace();
+        copyFromJAR();
+        log.logBold("Temporary directory has been cleared.\n\n");
+        log.logDivider();
+        log.flush();
     }
 
     /** This method performs File->Close. */
-    private Runner doClose() {
-        if (!wrap)
-            text.close();
-        return wrapMe();
+    private void doClose() {
+        text.close();
     }
 
     /** This method performs File->Quit. */
-    public Runner doQuit() {
-        if (!wrap)
-            if (text.closeAll()) {
-                try {
-                    WorkerEngine.stop();
-                } finally {
-                    System.exit(0);
-                }
+    public void doQuit() {
+        if (text.closeAll()) {
+            try {
+                WorkerEngine.stop();
+            } finally {
+                System.exit(0);
             }
-        return wrapMe();
+        }
     }
 
     // ===============================================================================================================//
 
     /** This method refreshes the "edit" menu. */
-    private Runner doRefreshEdit() {
-        if (wrap)
-            return wrapMe();
-        try {
-            wrap = true;
-            boolean canUndo = text.get().canUndo();
-            boolean canRedo = text.get().canRedo();
-            editmenu.removeAll();
-            menuItem(editmenu, "Undo", 'Z', 'Z', doUndo(), canUndo);
-            if (Util.onMac())
-                menuItem(editmenu, "Redo", VK_SHIFT, 'Z', doRedo(), canRedo);
-            else
-                menuItem(editmenu, "Redo", 'Y', 'Y', doRedo(), canRedo);
-            editmenu.addSeparator();
-            menuItem(editmenu, "Cut", 'X', 'X', doCut());
-            menuItem(editmenu, "Copy", 'C', 'C', doCopy());
-            menuItem(editmenu, "Paste", 'V', 'V', doPaste());
-            editmenu.addSeparator();
-            menuItem(editmenu, "Go To...", 'T', 'T', doGoto());
-            menuItem(editmenu, "Previous File", VK_PAGE_UP, VK_PAGE_UP, doGotoPrevFile(), text.count() > 1);
-            menuItem(editmenu, "Next File", VK_PAGE_DOWN, VK_PAGE_DOWN, doGotoNextFile(), text.count() > 1);
-            editmenu.addSeparator();
-            menuItem(editmenu, "Find...", 'F', 'F', doFind());
-            menuItem(editmenu, "Find Next", 'G', 'G', doFindNext());
-            editmenu.addSeparator();
-            if (!Util.onMac())
-                menuItem(editmenu, "Preferences", 'P', 'P', doPreferences());
-        } finally {
-            wrap = false;
-        }
-        return null;
+    private void doRefreshEdit() {
+        boolean canUndo = text.get().canUndo();
+        boolean canRedo = text.get().canRedo();
+        editmenu.removeAll();
+        menuItem(editmenu, "Undo", 'Z', 'Z', (ActionListener) e ->  doUndo(), canUndo);
+        if (Util.onMac())
+            menuItem(editmenu, "Redo", VK_SHIFT, 'Z', (ActionListener) e ->  doRedo(), canRedo);
+        else
+            menuItem(editmenu, "Redo", 'Y', 'Y', (ActionListener) e ->  doRedo(), canRedo);
+        editmenu.addSeparator();
+        menuItem(editmenu, "Cut", 'X', 'X', (ActionListener) e ->  doCut());
+        menuItem(editmenu, "Copy", 'C', 'C', (ActionListener) e ->  doCopy());
+        menuItem(editmenu, "Paste", 'V', 'V', (ActionListener) e ->  doPaste());
+        editmenu.addSeparator();
+        menuItem(editmenu, "Go To...", 'T', 'T', (ActionListener) e ->  doGoto());
+        menuItem(editmenu, "Previous File", VK_PAGE_UP, VK_PAGE_UP, (ActionListener) e ->  doGotoPrevFile(), text.count() > 1);
+        menuItem(editmenu, "Next File", VK_PAGE_DOWN, VK_PAGE_DOWN, (ActionListener) e ->  doGotoNextFile(), text.count() > 1);
+        editmenu.addSeparator();
+        menuItem(editmenu, "Find...", 'F', 'F', (ActionListener) e ->  doFind());
+        menuItem(editmenu, "Find Next", 'G', 'G', (ActionListener) e ->  doFindNext());
+        editmenu.addSeparator();
+        if (!Util.onMac())
+            menuItem(editmenu, "Preferences", 'P', 'P', (ActionListener) e ->  doPreferences());
     }
 
     /** This method performs Edit->Undo. */
-    private Runner doUndo() {
-        if (!wrap)
-            text.get().undo();
-        return wrapMe();
+    private void doUndo() {
+        text.get().undo();
     }
 
     /** This method performs Edit->Redo. */
-    private Runner doRedo() {
-        if (!wrap)
-            text.get().redo();
-        return wrapMe();
+    private void doRedo() {
+        text.get().redo();
     }
 
     /** This method performs Edit->Copy. */
-    private Runner doCopy() {
-        if (!wrap) {
-            if (lastFocusIsOnEditor)
-                text.get().copy();
-            else
-                log.copy();
-        }
-        return wrapMe();
+    private void doCopy() {
+        if (lastFocusIsOnEditor)
+            text.get().copy();
+        else
+            log.copy();
     }
 
     /** This method performs Edit->Cut. */
-    private Runner doCut() {
-        if (!wrap && lastFocusIsOnEditor)
+    private void doCut() {
+        if (lastFocusIsOnEditor)
             text.get().cut();
-        return wrapMe();
     }
 
     /** This method performs Edit->Paste. */
-    private Runner doPaste() {
-        if (!wrap && lastFocusIsOnEditor)
+    private void doPaste() {
+        if (lastFocusIsOnEditor)
             text.get().paste();
-        return wrapMe();
     }
 
     /** This method performs Edit->Find. */
-    private Runner doFind() {
-        if (wrap)
-            return wrapMe();
+    private void doFind() {
         JTextField x = OurUtil.textfield(lastFind, 30);
         x.selectAll();
         JCheckBox c = new JCheckBox("Case Sensitive?", lastFindCaseSensitive);
@@ -919,22 +763,19 @@ public final class SimpleGUI implements ComponentListener, Listener {
         JCheckBox b = new JCheckBox("Search Backward?", !lastFindForward);
         b.setMnemonic('b');
         if (!OurDialog.getInput("Find", "Text:", x, " ", c, b))
-            return null;
+            return;
         if (x.getText().length() == 0)
-            return null;
+            return;
         lastFind = x.getText();
         lastFindCaseSensitive = c.getModel().isSelected();
         lastFindForward = !b.getModel().isSelected();
         doFindNext();
-        return null;
     }
 
     /** This method performs Edit->FindNext. */
-    private Runner doFindNext() {
-        if (wrap)
-            return wrapMe();
+    private void doFindNext() {
         if (lastFind.length() == 0)
-            return null;
+            return;
         OurSyntaxWidget t = text.get();
         String all = t.getText();
         int i = Util.indexOf(all, lastFind, t.getCaret() + (lastFindForward ? 0 : -1), lastFindForward, lastFindCaseSensitive);
@@ -942,7 +783,7 @@ public final class SimpleGUI implements ComponentListener, Listener {
             i = Util.indexOf(all, lastFind, lastFindForward ? 0 : (all.length() - 1), lastFindForward, lastFindCaseSensitive);
             if (i < 0) {
                 log.logRed("The specified search string cannot be found.");
-                return null;
+                return;
             }
             log.logRed("Search wrapped.");
         } else {
@@ -953,39 +794,33 @@ public final class SimpleGUI implements ComponentListener, Listener {
         else
             t.moveCaret(i + lastFind.length(), i);
         t.requestFocusInWindow();
-        return null;
     }
 
     /** This method performs Edit->Preferences. */
-    public Runner doPreferences() {
-        if (wrap)
-            return wrapMe();
+    public void doPreferences() {
         prefDialog.setVisible(true);
-        return null;
     }
 
     /** This method performs Edit->Goto. */
-    private Runner doGoto() {
-        if (wrap)
-            return wrapMe();
+    private void doGoto() {
         JTextField y = OurUtil.textfield("", 10);
         JTextField x = OurUtil.textfield("", 10);
         if (!OurDialog.getInput("Go To", "Line Number:", y, "Column Number (optional):", x))
-            return null;
+            return;
         try {
             OurSyntaxWidget t = text.get();
             int xx = 1, yy = Integer.parseInt(y.getText()), lineCount = t.getLineCount();
             if (yy < 1)
-                return null;
+                return;
             if (yy > lineCount) {
                 log.logRed("This file only has " + lineCount + " line(s).");
-                return null;
+                return;
             }
             if (x.getText().length() != 0)
                 xx = Integer.parseInt(x.getText());
             if (xx < 1) {
                 log.logRed("If the column number is specified, it must be 1 or greater.");
-                return null;
+                return;
             }
             int caret = t.getLineStartOffset(yy - 1);
             int len = (yy == lineCount ? t.getText().length() + 1 : t.getLineStartOffset(yy)) - caret;
@@ -1000,49 +835,31 @@ public final class SimpleGUI implements ComponentListener, Listener {
         } catch (Throwable ex) {
             // This error is not important
         }
-        return null;
     }
 
     /** This method performs Edit->GotoPrevFile. */
-    private Runner doGotoPrevFile() {
-        if (wrap)
-            return wrapMe();
-        else {
-            text.prev();
-            return null;
-        }
+    private void doGotoPrevFile() {
+        text.prev();
     }
 
     /** This method performs Edit->GotoNextFile. */
-    private Runner doGotoNextFile() {
-        if (wrap)
-            return wrapMe();
-        else {
-            text.next();
-            return null;
-        }
+    private void doGotoNextFile() {
+        text.next();
     }
 
     // ===============================================================================================================//
 
     /** This method refreshes the "run" menu. */
-    private Runner doRefreshRun() {
-        if (wrap)
-            return wrapMe();
+    private void doRefreshRun() {
         KeyStroke ac = KeyStroke.getKeyStroke(VK_E, Toolkit.getDefaultToolkit().getMenuShortcutKeyMask());
-        try {
-            wrap = true;
-            runmenu.removeAll();
-            menuItem(runmenu, "Execute Latest Command", 'E', 'E', doExecuteLatest());
-            runmenu.add(new JSeparator());
-            menuItem(runmenu, "Show Latest Instance", 'L', 'L', doShowLatest(), latestInstance.length() > 0);
-            menuItem(runmenu, "Show Metamodel", 'M', 'M', doShowMetaModel());
-            if (Version.experimental)
-                menuItem(runmenu, "Show Parse Tree", 'P', doShowParseTree());
-            menuItem(runmenu, "Open Evaluator", 'V', doLoadEvaluator());
-        } finally {
-            wrap = false;
-        }
+        runmenu.removeAll();
+        menuItem(runmenu, "Execute Latest Command", 'E', 'E', (ActionListener) e -> doExecuteLatest());
+        runmenu.add(new JSeparator());
+        menuItem(runmenu, "Show Latest Instance", 'L', 'L', (ActionListener) e -> doShowLatest(), latestInstance.length() > 0);
+        menuItem(runmenu, "Show Metamodel", 'M', 'M', (ActionListener) e -> doShowMetaModel());
+        if (Version.experimental)
+            menuItem(runmenu, "Show Parse Tree", 'P', (ActionListener) e -> doShowParseTree());
+        menuItem(runmenu, "Open Evaluator", 'V', (ActionListener) e -> doLoadEvaluator());
         List<Command> cp = commands;
         if (cp == null) {
             try {
@@ -1057,13 +874,13 @@ public final class SimpleGUI implements ComponentListener, Listener {
                     log.logRed("Fatal Exception!" + e.dump() + "\n\n");
                 else
                     log.logRed(e.toString() + "\n\n");
-                return null;
+                return;
             } catch (Throwable e) {
                 commands = null;
                 runmenu.getItem(0).setEnabled(false);
                 runmenu.getItem(3).setEnabled(false);
                 log.logRed("Cannot parse the model.\n" + e.toString() + "\n\n");
-                return null;
+                return;
             }
             commands = cp;
         }
@@ -1072,48 +889,41 @@ public final class SimpleGUI implements ComponentListener, Listener {
         if (cp == null) {
             runmenu.getItem(0).setEnabled(false);
             runmenu.getItem(3).setEnabled(false);
-            return null;
+            return;
         }
         if (cp.size() == 0) {
             runmenu.getItem(0).setEnabled(false);
-            return null;
+            return;
         }
         if (latestCommand >= cp.size())
             latestCommand = cp.size() - 1;
         runmenu.remove(0);
-        try {
-            wrap = true;
-            for (int i = 0; i < cp.size(); i++) {
-                JMenuItem y = new JMenuItem(cp.get(i).toString(), null);
-                y.addActionListener(doRun(i));
-                if (i == latestCommand) {
-                    y.setMnemonic(VK_E);
-                    y.setAccelerator(ac);
-                }
-                runmenu.add(y, i);
+        for (int i = 0; i < cp.size(); i++) {
+            JMenuItem y = new JMenuItem(cp.get(i).toString(), null);
+            int finalI = i;
+            y.addActionListener(e -> doRun(finalI));
+            if (i == latestCommand) {
+                y.setMnemonic(VK_E);
+                y.setAccelerator(ac);
             }
-            if (cp.size() >= 2) {
-                JMenuItem y = new JMenuItem("Execute All", null);
-                y.setMnemonic(VK_A);
-                y.addActionListener(doRun(-1));
-                runmenu.add(y, 0);
-                runmenu.add(new JSeparator(), 1);
-            }
-        } finally {
-            wrap = false;
+            runmenu.add(y, i);
         }
-        return null;
+        if (cp.size() >= 2) {
+            JMenuItem y = new JMenuItem("Execute All", null);
+            y.setMnemonic(VK_A);
+            y.addActionListener(e -> doRun(-1));
+            runmenu.add(y, 0);
+            runmenu.add(new JSeparator(), 1);
+        }
     }
 
     /**
      * This method executes a particular RUN or CHECK command.
      */
-    private Runner doRun(Integer commandIndex) {
-        if (wrap)
-            return wrapMe(commandIndex);
+    private void doRun(Integer commandIndex) {
         final int index = commandIndex;
         if (WorkerEngine.isBusy())
-            return null;
+            return;
         if (index == (-2))
             subrunningTask = 1;
         else
@@ -1130,10 +940,10 @@ public final class SimpleGUI implements ComponentListener, Listener {
         doRefreshRun();
         OurUtil.enableAll(runmenu);
         if (commands == null)
-            return null;
+            return;
         if (commands.size() == 0 && index != -2 && index != -3) {
             log.logRed("There are no commands to execute.\n\n");
-            return null;
+            return;
         }
         int i = index;
         if (i >= commands.size())
@@ -1179,16 +989,13 @@ public final class SimpleGUI implements ComponentListener, Listener {
             log.flush();
             doStop(2);
         }
-        return null;
     }
 
     /**
      * This method stops the current run or check (how==0 means DONE, how==1 means
      * FAIL, how==2 means STOP).
      */
-    Runner doStop(Integer how) {
-        if (wrap)
-            return wrapMe(how);
+    void doStop(Integer how) {
         int h = how;
         if (h != 0) {
             if (h == 2 && WorkerEngine.isBusy()) {
@@ -1210,33 +1017,28 @@ public final class SimpleGUI implements ComponentListener, Listener {
             else if (AutoVisualize.get() || subrunningTask == 1)
                 doVisualize("XML: " + f);
         }
-        return null;
     }
 
     /** This method executes the latest command. */
-    private Runner doExecuteLatest() {
-        if (wrap)
-            return wrapMe();
+    private void doExecuteLatest() {
         doRefreshRun();
         OurUtil.enableAll(runmenu);
         if (commands == null)
-            return null;
+            return;
         int n = commands.size();
         if (n <= 0) {
             log.logRed("There are no commands to execute.\n\n");
-            return null;
+            return;
         }
         if (latestCommand >= n)
             latestCommand = n - 1;
         if (latestCommand < 0)
             latestCommand = 0;
-        return doRun(latestCommand);
+        doRun(latestCommand);
     }
 
     /** This method displays the parse tree. */
-    private Runner doShowParseTree() {
-        if (wrap)
-            return wrapMe();
+    private void doShowParseTree() {
         doRefreshRun();
         OurUtil.enableAll(runmenu);
         if (commands != null) {
@@ -1251,45 +1053,35 @@ public final class SimpleGUI implements ComponentListener, Listener {
             } catch (Err er) {
                 text.shade(er.pos);
                 log.logRed(er.toString() + "\n\n");
-                return null;
+                return;
             }
             world.showAsTree(this);
         }
-        return null;
     }
 
     /** This method displays the meta model. */
-    private Runner doShowMetaModel() {
-        if (wrap)
-            return wrapMe();
+    private void doShowMetaModel() {
         doRefreshRun();
         OurUtil.enableAll(runmenu);
         if (commands != null)
             doRun(-2);
-        return null;
     }
 
     /** This method displays the latest instance. */
-    private Runner doShowLatest() {
-        if (wrap)
-            return wrapMe();
+    private void doShowLatest() {
         if (latestInstance.length() == 0)
             log.logRed("No previous instances are available for viewing.\n\n");
         else
             doVisualize("XML: " + latestInstance);
-        return null;
     }
 
     /**
      * This method happens when the user tries to load the evaluator from the main
      * GUI.
      */
-    private Runner doLoadEvaluator() {
-        if (wrap)
-            return wrapMe();
+    private void doLoadEvaluator() {
         log.logRed("Note: the evaluator is now in the visualizer.\n" + "Just click the \"Evaluator\" toolbar button\n" + "when an instance is shown in the visualizer.\n");
         log.flush();
-        return null;
     }
 
     // ===============================================================================================================//
@@ -1298,119 +1090,87 @@ public final class SimpleGUI implements ComponentListener, Listener {
      * This method refreshes the "Window" menu for either the SimpleGUI window
      * (isViz==false) or the VizGUI window (isViz==true).
      */
-    private Runner doRefreshWindow(Boolean isViz) {
-        if (wrap)
-            return wrapMe(isViz);
-        try {
-            wrap = true;
-            JMenu w = (isViz ? windowmenu2 : windowmenu);
-            w.removeAll();
-            if (isViz) {
-                viz.addMinMaxActions(w);
-            } else {
-                menuItem(w, "Minimize", 'M', doMinimize(), iconNo);
-                menuItem(w, "Zoom", doZoom(), iconNo);
-            }
-            w.addSeparator();
-            int i = 0;
-            for (String f : text.getFilenames()) {
-                JMenuItem it = new JMenuItem("Model: " + slightlyShorterFilename(f) + (text.modified(i) ? " *" : ""), null);
-                it.setIcon((f.equals(text.get().getFilename()) && !isViz) ? iconYes : iconNo);
-                it.addActionListener(f.equals(text.get().getFilename()) ? doShow() : doOpenFile(f));
-                w.add(it);
-                i++;
-            }
-            if (viz != null)
-                for (String f : viz.getInstances()) {
-                    JMenuItem it = new JMenuItem("Instance: " + viz.getInstanceTitle(f), null);
-                    it.setIcon((isViz && f.equals(viz.getXMLfilename())) ? iconYes : iconNo);
-                    it.addActionListener(doVisualize("XML: " + f));
-                    w.add(it);
-                }
-        } finally {
-            wrap = false;
+    private void doRefreshWindow(Boolean isViz) {
+        JMenu w = (isViz ? windowmenu2 : windowmenu);
+        w.removeAll();
+        if (isViz) {
+            viz.addMinMaxActions(w);
+        } else {
+            menuItem(w, "Minimize", 'M', (ActionListener) e -> doMinimize(), iconNo);
+            menuItem(w, "Zoom", (ActionListener) e -> doZoom(), iconNo);
         }
-        return null;
+        w.addSeparator();
+        int i = 0;
+        for (String f : text.getFilenames()) {
+            JMenuItem it = new JMenuItem("Model: " + slightlyShorterFilename(f) + (text.modified(i) ? " *" : ""), null);
+            it.setIcon((f.equals(text.get().getFilename()) && !isViz) ? iconYes : iconNo);
+            it.addActionListener(f.equals(text.get().getFilename()) ? e -> doShow() : e -> doOpenFile(f));
+            w.add(it);
+            i++;
+        }
+        if (viz != null)
+            for (String f : viz.getInstances()) {
+                JMenuItem it = new JMenuItem("Instance: " + viz.getInstanceTitle(f), null);
+                it.setIcon((isViz && f.equals(viz.getXMLfilename())) ? iconYes : iconNo);
+                it.addActionListener(e -> doVisualize("XML: " + f));
+                w.add(it);
+            }
     }
 
     /** This method minimizes the window. */
-    private Runner doMinimize() {
-        if (wrap)
-            return wrapMe();
-        else {
-            OurUtil.minimize(frame);
-            return null;
-        }
+    private void doMinimize() {
+        OurUtil.minimize(frame);
     }
 
     /**
      * This method alternatingly maximizes or restores the window.
      */
-    private Runner doZoom() {
-        if (wrap)
-            return wrapMe();
-        else {
-            OurUtil.zoom(frame);
-            return null;
-        }
+    private void doZoom() {
+        OurUtil.zoom(frame);
     }
 
     /** This method bring this window to the foreground. */
-    private Runner doShow() {
-        if (wrap)
-            return wrapMe();
+    private void doShow() {
         OurUtil.show(frame);
         text.get().requestFocusInWindow();
-        return null;
     }
 
     // ===============================================================================================================//
 
     /** This method refreshes the "Option" menu. */
-    private Runner doRefreshOption() {
-        if (wrap)
-            return wrapMe();
-        try {
-            wrap = true;
-            optmenu.removeAll();
-            addToMenu(optmenu, Welcome);
+    private void doRefreshOption() {
+        optmenu.removeAll();
+        addToMenu(optmenu, Welcome);
 
-            optmenu.addSeparator();
+        optmenu.addSeparator();
 
-            addToMenu(optmenu, WarningNonfatal);
-            addToMenu(optmenu, SubMemory, SubStack, VerbosityPref);
+        addToMenu(optmenu, WarningNonfatal);
+        addToMenu(optmenu, SubMemory, SubStack, VerbosityPref);
 
-            optmenu.addSeparator();
+        optmenu.addSeparator();
 
-            addToMenu(optmenu, FontSize);
-            menuItem(optmenu, "Font: " + FontName.get() + "...", doOptFontname());
-            addToMenu(optmenu, TabSize);
+        addToMenu(optmenu, FontSize);
+        menuItem(optmenu, "Font: " + FontName.get() + "...", (ActionListener) e -> doOptFontname());
+        addToMenu(optmenu, TabSize);
 
-            optmenu.addSeparator();
+        optmenu.addSeparator();
 
-            addToMenu(optmenu, Solver);
-            addToMenu(optmenu, SkolemDepth);
-            JMenu cmMenu = addToMenu(optmenu, CoreMinimization);
-            cmMenu.setEnabled(Solver.get() == SatSolver.MiniSatProverJNI);
-            JMenu cgMenu = addToMenu(optmenu, CoreGranularity);
-            cgMenu.setEnabled(Solver.get() == SatSolver.MiniSatProverJNI);
+        addToMenu(optmenu, Solver);
+        addToMenu(optmenu, SkolemDepth);
+        JMenu cmMenu = addToMenu(optmenu, CoreMinimization);
+        cmMenu.setEnabled(Solver.get() == SatSolver.MiniSatProverJNI);
+        JMenu cgMenu = addToMenu(optmenu, CoreGranularity);
+        cgMenu.setEnabled(Solver.get() == SatSolver.MiniSatProverJNI);
 
-            addToMenu(optmenu, AutoVisualize, RecordKodkod);
+        addToMenu(optmenu, AutoVisualize, RecordKodkod);
 
-            if (Version.experimental) {
-                addToMenu(optmenu, Unrolls);
-                addToMenu(optmenu, ImplicitThis, NoOverflow, InferPartialInstance);
-            }
-
-        } finally {
-            wrap = false;
+        if (Version.experimental) {
+            addToMenu(optmenu, Unrolls);
+            addToMenu(optmenu, ImplicitThis, NoOverflow, InferPartialInstance);
         }
-        return null;
     }
 
-    private Runner doOptFontname() {
-        if (wrap)
-            return wrapMe();
+    private void doOptFontname() {
         int size = FontSize.get();
         String f = OurDialog.askFont();
         if (f.length() > 0) {
@@ -1419,31 +1179,24 @@ public final class SimpleGUI implements ComponentListener, Listener {
             status.setFont(new Font(f, Font.PLAIN, size));
             log.setFontName(f);
         }
-        return null;
     }
 
     /**
      * This method applies the changes to the font-related settings.
      */
-    private Runner doOptRefreshFont() {
-        if (wrap)
-            return wrapMe();
+    private void doOptRefreshFont() {
         String f = FontName.get();
         int n = FontSize.get();
         text.setFont(f, n, TabSize.get());
         status.setFont(new Font(f, Font.PLAIN, n));
         log.setFontSize(n);
         viz.doSetFontSize(n);
-        return null;
     }
 
     // ===============================================================================================================//
 
     /** This method displays the about box. */
-    public Runner doAbout() {
-        if (wrap)
-            return wrapMe();
-
+    public void doAbout() {
         // Old about message
         // OurDialog.showmsg("About Alloy Analyzer " + Version.version(), OurUtil.loadIcon("images/logo.gif"), "Alloy Analyzer " + Version.version(), "Build date: " + " git: " + Version.commit, " ", "Lead developer: Felix Chang", "Engine developer: Emina Torlak", "Graphic design: Julie Pelaez", "Project lead: Daniel Jackson", " ", "Please post comments and questions to the Alloy Community Forum at http://alloy.mit.edu/", " ", "Thanks to: Ilya Shlyakhter, Manu Sridharan, Derek Rayside, Jonathan Edwards, Gregory Dennis,", "Robert Seater, Edmond Lau, Vincent Yeung, Sam Daitch, Andrew Yip, Jongmin Baek, Ning Song,", "Arturo Arizpe, Li-kuo (Brian) Lin, Joseph Cohen, Jesse Pavel, Ian Schechter, and Uriel Schafer.");
 
@@ -1503,14 +1256,10 @@ public final class SimpleGUI implements ComponentListener, Listener {
             }
         });
         OurDialog.showmsg("About Alloy Analyzer " + Version.version(), ta);
-
-        return null;
     }
 
     /** This method displays the help html. */
-    private Runner doHelp() {
-        if (wrap)
-            return wrapMe();
+    private void doHelp() {
         try {
             int w = OurUtil.getScreenWidth(), h = OurUtil.getScreenHeight();
             final JFrame frame = new JFrame();
@@ -1522,27 +1271,23 @@ public final class SimpleGUI implements ComponentListener, Listener {
             doc2.setAsynchronousLoadPriority(-1);
             html1.setPage(this.getClass().getResource("/help/Nav.html"));
             html2.setPage(this.getClass().getResource("/help/index.html"));
-            HyperlinkListener hl = new HyperlinkListener() {
-
-                @Override
-                public final void hyperlinkUpdate(HyperlinkEvent e) {
-                    try {
-                        if (e.getEventType() != HyperlinkEvent.EventType.ACTIVATED)
-                            return;
-                        if (e.getURL().getPath().endsWith("quit.htm")) {
-                            frame.dispose();
-                            return;
-                        }
-                        HTMLDocument doc = (HTMLDocument) (html2.getDocument());
-                        doc.setAsynchronousLoadPriority(-1); // So that we can
-                                                            // catch any
-                                                            // exception
-                                                            // that may
-                                                            // occur
-                        html2.setPage(e.getURL());
-                        html2.requestFocusInWindow();
-                    } catch (Throwable ex) {
+            HyperlinkListener hl = e -> {
+                try {
+                    if (e.getEventType() != EventType.ACTIVATED)
+                        return;
+                    if (e.getURL().getPath().endsWith("quit.htm")) {
+                        frame.dispose();
+                        return;
                     }
+                    HTMLDocument doc = (HTMLDocument) (html2.getDocument());
+                    doc.setAsynchronousLoadPriority(-1); // So that we can
+                                                        // catch any
+                                                        // exception
+                                                        // that may
+                                                        // occur
+                    html2.setPage(e.getURL());
+                    html2.requestFocusInWindow();
+                } catch (Throwable ex) {
                 }
             };
             html1.setEditable(false);
@@ -1565,21 +1310,17 @@ public final class SimpleGUI implements ComponentListener, Listener {
             frame.setVisible(true);
             html2.requestFocusInWindow();
         } catch (Throwable ex) {
-            return null;
         }
-        return null;
     }
 
     /** This method displays the license box. */
-    private Runner doLicense() {
-        if (wrap)
-            return wrapMe();
+    private void doLicense() {
         final String JAR = Util.jarPrefix();
         String alloytxt;
         try {
             alloytxt = Util.readAll(JAR + "LICENSES" + File.separator + "Alloy.txt");
         } catch (IOException ex) {
-            return null;
+            return;
         }
         final JTextArea text = OurUtil.textarea(alloytxt, 15, 85, false, false, new EmptyBorder(2, 2, 2, 2), new Font("Monospaced", Font.PLAIN, 12));
         final JScrollPane scroll = OurUtil.scrollpane(text, new LineBorder(Color.DARK_GRAY, 1));
@@ -1603,7 +1344,6 @@ public final class SimpleGUI implements ComponentListener, Listener {
             }
         };
         OurDialog.showmsg("Copyright Notices", "The source code for the Alloy Analyzer is available under the MIT license.", " ", "The Alloy Analyzer utilizes several third-party packages whose code may", "be distributed under a different license. We are extremely grateful to", "the authors of these packages for making their source code freely available.", " ", OurUtil.makeH(null, "See the copyright notice for: ", combo, null), " ", scroll);
-        return null;
     }
 
     /** This method changes the latest instance. */
@@ -1630,12 +1370,10 @@ public final class SimpleGUI implements ComponentListener, Listener {
      * This method displays a particular instance or message.
      */
     @SuppressWarnings("unchecked" )
-    Runner doVisualize(String arg) {
-        if (wrap)
-            return wrapMe(arg);
+    void doVisualize(String arg) {
         text.clearShade();
         if (arg.startsWith("MSG: ")) { // MSG: message
-            OurDialog.showtext("Detailed Message", arg.substring(5));
+            OurDialog.showText("Detailed Message", arg.substring(5));
         }
         if (arg.startsWith("CORE: ")) { // CORE: filename
             String filename = Util.canon(arg.substring(6));
@@ -1650,7 +1388,7 @@ public final class SimpleGUI implements ComponentListener, Listener {
                 // lCore = (Set<Pos>) ois.readObject();
             } catch (Throwable ex) {
                 log.logRed("Error reading or parsing the core \"" + filename + "\"\n");
-                return null;
+                return;
             } finally {
                 Util.close(ois);
                 Util.close(is);
@@ -1676,7 +1414,7 @@ public final class SimpleGUI implements ComponentListener, Listener {
             String filename = Util.canon(arg.substring(5));
             try {
                 String text = Util.readAll(filename);
-                OurDialog.showtext("Text Viewer", text);
+                OurDialog.showText("Text Viewer", text);
             } catch (IOException ex) {
                 log.logRed("Error reading the file \"" + filename + "\"\n");
             }
@@ -1684,22 +1422,18 @@ public final class SimpleGUI implements ComponentListener, Listener {
         if (arg.startsWith("XML: ")) { // XML: filename
             viz.loadXML(Util.canon(arg.substring(5)), false);
         }
-        return null;
     }
 
     /** This method opens a particular file. */
-    private Runner doOpenFile(String arg) {
-        if (wrap)
-            return wrapMe(arg);
+    private void doOpenFile(String arg) {
         String f = Util.canon(arg);
         if (!text.newtab(f))
-            return null;
+            return;
         if (text.get().isFile())
             addHistory(f);
         doShow();
         text.get().requestFocusInWindow();
         log.clearError();
-        return null;
     }
 
     /** This object performs solution enumeration. */
@@ -1899,13 +1633,7 @@ public final class SimpleGUI implements ComponentListener, Listener {
         System.setProperty("awt.useSystemAAFontSettings", "on");
         System.setProperty("swing.aatext", "true");
 
-        SwingUtilities.invokeLater(new Runnable() {
-
-            @Override
-            public void run() {
-                new SimpleGUI(args);
-            }
-        });
+        SwingUtilities.invokeLater(() -> new SimpleGUI(args));
     }
 
     // ====== Constructor ====================================================//
@@ -2059,7 +1787,7 @@ public final class SimpleGUI implements ComponentListener, Listener {
         // }
         // };
         // c.callback(null);
-        
+
         if (Util.onMac()) {
             frame.getRootPane().putClientProperty("apple.awt.fullscreenable", true);
         }
@@ -2070,12 +1798,12 @@ public final class SimpleGUI implements ComponentListener, Listener {
     private void finishInit(String[] args, int width) {
 
         // Add the listeners
-        try {
-            wrap = true;
-            frame.addWindowListener(doQuit());
-        } finally {
-            wrap = false;
-        }
+        frame.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(WindowEvent e) {
+                doQuit();
+            }
+        });
         frame.addComponentListener(this);
 
         // initialize the "allowed memory sizes" array
@@ -2101,46 +1829,36 @@ public final class SimpleGUI implements ComponentListener, Listener {
 
         // Create the menu bar
         JMenuBar bar = new JMenuBar();
-        try {
-            wrap = true;
-            filemenu = menu(bar, "&File", doRefreshFile());
-            editmenu = menu(bar, "&Edit", doRefreshEdit());
-            runmenu = menu(bar, "E&xecute", doRefreshRun());
-            optmenu = menu(bar, "&Options", doRefreshOption());
-            windowmenu = menu(bar, "&Window", doRefreshWindow(false));
-            windowmenu2 = menu(null, "&Window", doRefreshWindow(true));
-            helpmenu = menu(bar, "&Help", null);
-            menuItem(helpmenu, "About Alloy...", 'A', doAbout());
-            menuItem(helpmenu, "Quick Guide", 'Q', doHelp());
-            menuItem(helpmenu, "See the Copyright Notices...", 'L', doLicense());
-        } finally {
-            wrap = false;
-        }
+        filemenu = menu(bar, "&File", this::doRefreshFile);
+        editmenu = menu(bar, "&Edit", this::doRefreshEdit);
+        runmenu = menu(bar, "E&xecute", this::doRefreshRun);
+        optmenu = menu(bar, "&Options", this::doRefreshOption);
+        windowmenu = menu(bar, "&Window", () -> doRefreshWindow(false));
+        windowmenu2 = menu(null, "&Window", () -> doRefreshWindow(true));
+        helpmenu = menu(bar, "&Help", null);
+        menuItem(helpmenu, "About Alloy...", 'A', (ActionListener) e -> doAbout());
+        menuItem(helpmenu, "Quick Guide", 'Q', (ActionListener) e -> doHelp());
+        menuItem(helpmenu, "See the Copyright Notices...", 'L', (ActionListener) e -> doLicense());
 
         // Pre-load the visualizer
         viz = new VizGUI(false, "", windowmenu2, enumerator, evaluator);
         viz.doSetFontSize(FontSize.get());
 
         // Create the toolbar
-        try {
-            wrap = true;
-            toolbar = new JToolBar();
-            toolbar.setFloatable(false);
-            if (!Util.onMac())
-                toolbar.setBackground(background);
-            toolbar.add(OurUtil.button("New", "Starts a new blank model", "images/24_new.gif", doNew()));
-            toolbar.add(OurUtil.button("Open", "Opens an existing model", "images/24_open.gif", doOpen()));
-            toolbar.add(OurUtil.button("Reload", "Reload all the models from disk", "images/24_reload.gif", doReloadAll()));
-            toolbar.add(OurUtil.button("Save", "Saves the current model", "images/24_save.gif", doSave()));
-            toolbar.add(runbutton = OurUtil.button("Execute", "Executes the latest command", "images/24_execute.gif", doExecuteLatest()));
-            toolbar.add(stopbutton = OurUtil.button("Stop", "Stops the current analysis", "images/24_execute_abort2.gif", doStop(2)));
-            stopbutton.setVisible(false);
-            toolbar.add(showbutton = OurUtil.button("Show", "Shows the latest instance", "images/24_graph.gif", doShowLatest()));
-            toolbar.add(Box.createHorizontalGlue());
-            toolbar.setBorder(new OurBorder(false, false, false, false));
-        } finally {
-            wrap = false;
-        }
+        toolbar = new JToolBar();
+        toolbar.setFloatable(false);
+        if (!Util.onMac())
+            toolbar.setBackground(background);
+        toolbar.add(OurUtil.button("New", "Starts a new blank model", "images/24_new.gif", e -> doNew()));
+        toolbar.add(OurUtil.button("Open", "Opens an existing model", "images/24_open.gif", e -> doOpen()));
+        toolbar.add(OurUtil.button("Reload", "Reload all the models from disk", "images/24_reload.gif", e -> doReloadAll()));
+        toolbar.add(OurUtil.button("Save", "Saves the current model", "images/24_save.gif", e -> doSave()));
+        toolbar.add(runbutton = OurUtil.button("Execute", "Executes the latest command", "images/24_execute.gif", e -> doExecuteLatest()));
+        toolbar.add(stopbutton = OurUtil.button("Stop", "Stops the current analysis", "images/24_execute_abort2.gif", e -> doStop(2)));
+        stopbutton.setVisible(false);
+        toolbar.add(showbutton = OurUtil.button("Show", "Shows the latest instance", "images/24_graph.gif", e -> doShowLatest()));
+        toolbar.add(Box.createHorizontalGlue());
+        toolbar.setBorder(new OurBorder(false, false, false, false));
 
         // Create the message area
         logpane = OurUtil.scrollpane(null);
@@ -2173,14 +1891,11 @@ public final class SimpleGUI implements ComponentListener, Listener {
 
         // If on Mac, then register an application listener
         try {
-            wrap = true;
             if (Util.onMac()) {
-                macUtil.registerApplicationListener(doShow(), doAbout(), doOpenFile(""), doQuit());
+                macUtil.registerApplicationListener(this::doShow, this::doAbout, this::doOpenFile, this::doQuit);
             }
         } catch (Throwable t) {
             System.out.println("Mac classes not there");
-        } finally {
-            wrap = false;
         }
 
         // Add the new JNI location to the java.library.path
@@ -2202,12 +1917,7 @@ public final class SimpleGUI implements ComponentListener, Listener {
         // Pre-load the preferences dialog
         prefDialog = new PreferencesDialog(log, binary);
         prefDialog.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
-        try {
-            wrap = true;
-            prefDialog.addChangeListener(wrapToChangeListener(doOptRefreshFont()), FontName, FontSize, TabSize);
-        } finally {
-            wrap = false;
-        }
+        prefDialog.addChangeListener(e -> doOptRefreshFont(), FontName, FontSize, TabSize);
 
         // If the temporary directory has become too big, then tell the user
         // they can "clear temporary directory".
@@ -2259,25 +1969,21 @@ public final class SimpleGUI implements ComponentListener, Listener {
         // version or not
         final long now = System.currentTimeMillis();
         final Timer t = new Timer(800, null);
-        t.addActionListener(new ActionListener() {
-
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                int n = MailBug.latestBuildNumber();
-                // If beyond 3 seconds, then we should stop because the log
-                // message may run into other user messages
-                if (System.currentTimeMillis() - now >= 3000 || n <= Version.buildNumber()) {
-                    t.stop();
-                    return;
-                }
-                latestAlloyVersion = n;
-                latestAlloyVersionName = MailBug.latestBuildName();
-                log.logBold("An updated version of the Alloy Analyzer has been released.\n");
-                log.log("Please visit alloy.mit.edu to download the latest version:\nVersion " + latestAlloyVersionName + "\n");
-                log.logDivider();
-                log.flush();
+        t.addActionListener(e -> {
+            int n = MailBug.latestBuildNumber();
+            // If beyond 3 seconds, then we should stop because the log
+            // message may run into other user messages
+            if (System.currentTimeMillis() - now >= 3000 || n <= Version.buildNumber()) {
                 t.stop();
+                return;
             }
+            latestAlloyVersion = n;
+            latestAlloyVersionName = MailBug.latestBuildName();
+            log.logBold("An updated version of the Alloy Analyzer has been released.\n");
+            log.log("Please visit alloy.mit.edu to download the latest version:\nVersion " + latestAlloyVersionName + "\n");
+            log.logDivider();
+            log.flush();
+            t.stop();
         });
         t.start();
     }
@@ -2353,19 +2059,5 @@ public final class SimpleGUI implements ComponentListener, Listener {
             Action action = pref.getAction(item);
             menuItem(parent, pref.renderValueLong(item).toString(), action, item == selected ? iconYes : iconNo);
         }
-    }
-
-    /**
-     * Takes a <code>Runner</code> and wraps it into a <code>ChangeListener</code>
-     */
-    private static ChangeListener wrapToChangeListener(final Runner r) {
-        assert r != null;
-        return new ChangeListener() {
-
-            @Override
-            public void stateChanged(ChangeEvent e) {
-                r.run();
-            }
-        };
     }
 }

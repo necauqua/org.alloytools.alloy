@@ -88,13 +88,7 @@ public class PreferencesDialog extends JFrame {
 
         public MyIntSpinnerModel(final IntPref pref) {
             this.pref = pref;
-            this.pref.addChangeListener(new ChangeListener() {
-
-                @Override
-                public void stateChanged(ChangeEvent e) {
-                    fireStateChanged();
-                }
-            });
+            this.pref.addChangeListener(e -> fireStateChanged());
         }
 
         @Override
@@ -125,13 +119,7 @@ public class PreferencesDialog extends JFrame {
 
         public CBModel(final ChoicePref<T> pref) {
             this.pref = pref;
-            this.pref.addChangeListener(new ChangeListener() {
-
-                @Override
-                public void stateChanged(ChangeEvent e) {
-                    fireContentsChanged(pref, -1, -1);
-                }
-            });
+            this.pref.addChangeListener(e -> fireContentsChanged(pref, -1, -1));
         }
 
         @Override
@@ -386,14 +374,10 @@ public class PreferencesDialog extends JFrame {
         addToGrid(p, mkCheckBox(InferPartialInstance), gbc().pos(0, r++).gridwidth(2));
         addToGrid(p, mkCheckBox(RecordKodkod), gbc().pos(0, r++).gridwidth(2));
 
-        Solver.addChangeListener(new ChangeListener() {
-
-            @Override
-            public void stateChanged(ChangeEvent e) {
-                boolean enableCore = Solver.get() == SatSolver.MiniSatProverJNI;
-                pref2comp.get(CoreGranularity).setEnabled(enableCore);
-                pref2comp.get(CoreMinimization).setEnabled(enableCore);
-            }
+        Solver.addChangeListener(e -> {
+            boolean enableCore = Solver.get() == SatSolver.MiniSatProverJNI;
+            pref2comp.get(CoreGranularity).setEnabled(enableCore);
+            pref2comp.get(CoreMinimization).setEnabled(enableCore);
         });
 
         return makeTabPane(p);
@@ -411,13 +395,7 @@ public class PreferencesDialog extends JFrame {
     protected JCheckBox mkCheckBox(final BooleanPref pref) {
         final JCheckBox cb = make(new JCheckBox(pref.getTitleAction()));
         pref2comp.put(pref, cb);
-        ChangeListener ctrl = new ChangeListener() {
-
-            @Override
-            public void stateChanged(ChangeEvent e) {
-                cb.setSelected(pref.get());
-            }
-        };
+        ChangeListener ctrl = e -> cb.setSelected(pref.get());
         pref.addChangeListener(ctrl);
         ctrl.stateChanged(null);
         return cb;
@@ -432,24 +410,12 @@ public class PreferencesDialog extends JFrame {
         sl.setPaintLabels(true);
         sl.setSnapToTicks(true);
         sl.setLabelTable(mkDict(pref));
-        pref.addChangeListener(new ChangeListener() {
-
-            @Override
-            public void stateChanged(ChangeEvent e) {
-                sl.setLabelTable(mkDict(pref));
-            }
-        });
+        pref.addChangeListener(e -> sl.setLabelTable(mkDict(pref)));
         sl.addMouseListener(new MouseAdapter() {
 
             @Override
             public void mouseReleased(MouseEvent e) {
-                SwingUtilities.invokeLater(new Runnable() {
-
-                    @Override
-                    public void run() {
-                        sl.updateUI();
-                    }
-                });
+                SwingUtilities.invokeLater(sl::updateUI);
             }
         });
         return OurUtil.makeH(pref.title + ": ", sl);
@@ -633,25 +599,15 @@ public class PreferencesDialog extends JFrame {
         if (log == null)
             return;
         for (final Pref< ? > pref : prefs) {
-            pref.addChangeListener(new ChangeListener() {
-
-                @Override
-                public void stateChanged(ChangeEvent e) {
-                    logPrefChanged(log, pref);
-                }
-            });
+            pref.addChangeListener(e -> logPrefChanged(log, pref));
         }
     }
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(new Runnable() {
-
-            @Override
-            public void run() {
-                PreferencesDialog sd = new PreferencesDialog(null, null);
-                sd.setDefaultCloseOperation(EXIT_ON_CLOSE);
-                sd.setVisible(true);
-            }
+        SwingUtilities.invokeLater(() -> {
+            PreferencesDialog sd = new PreferencesDialog(null, null);
+            sd.setDefaultCloseOperation(EXIT_ON_CLOSE);
+            sd.setVisible(true);
         });
     }
 

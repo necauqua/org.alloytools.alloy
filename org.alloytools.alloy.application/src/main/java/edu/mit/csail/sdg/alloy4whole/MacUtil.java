@@ -22,7 +22,7 @@ import com.apple.eawt.ApplicationAdapter;
 import com.apple.eawt.ApplicationEvent;
 import com.apple.eawt.ApplicationListener;
 
-import edu.mit.csail.sdg.alloy4.Runner;
+import java.util.function.Consumer;
 
 /**
  * This class provides better integration on Mac OS X.
@@ -63,7 +63,7 @@ public final class MacUtil {
      * @param quit - when the user clicks on Quit, we'll call quit.run() using
      *            SwingUtilities.invokeAndWait
      */
-    public synchronized void registerApplicationListener(final Runnable reopen, final Runnable about, final Runner open, final Runnable quit) {
+    public synchronized void registerApplicationListener(Runnable reopen, Runnable about, Consumer<String> open, Runnable quit) {
         if (app == null)
             app = new Application();
         else if (listener != null)
@@ -84,13 +84,7 @@ public final class MacUtil {
             @Override
             public void handleOpenFile(ApplicationEvent arg) {
                 final String filename = arg.getFilename();
-                SwingUtilities.invokeLater(new Runnable() {
-
-                    @Override
-                    public void run() {
-                        open.run(filename);
-                    }
-                });
+                SwingUtilities.invokeLater(() -> open.accept(filename));
             }
 
             @Override
@@ -125,12 +119,10 @@ public final class MacUtil {
         }
         try {
             Application.getApplication().addApplicationListener(new ApplicationAdapter() {
-
                 @Override
                 public void handlePreferences(ApplicationEvent ae) {
                     simpleGUI.doPreferences();
                 }
-
             });
         } catch (Throwable e) {
             System.err.println("cannot add app listener");

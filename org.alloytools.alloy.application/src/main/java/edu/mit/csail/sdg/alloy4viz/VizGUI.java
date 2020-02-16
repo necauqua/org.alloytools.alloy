@@ -22,15 +22,9 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Font;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.ComponentEvent;
-import java.awt.event.ComponentListener;
-import java.awt.event.FocusEvent;
-import java.awt.event.FocusListener;
+import java.awt.event.*;
 import java.io.File;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -65,7 +59,6 @@ import edu.mit.csail.sdg.alloy4.OurCheckbox;
 import edu.mit.csail.sdg.alloy4.OurConsole;
 import edu.mit.csail.sdg.alloy4.OurDialog;
 import edu.mit.csail.sdg.alloy4.OurUtil;
-import edu.mit.csail.sdg.alloy4.Runner;
 import edu.mit.csail.sdg.alloy4.Util;
 import edu.mit.csail.sdg.alloy4.Version;
 import edu.mit.csail.sdg.alloy4graph.GraphViewer;
@@ -373,106 +366,6 @@ public final class VizGUI implements ComponentListener {
     // ==============================================================================================//
 
     /**
-     * If true, that means the event handlers should return a Runner encapsulating
-     * them, rather than perform the actual work.
-     */
-    private boolean                 wrap      = false;
-
-
-    /**
-     * Wraps the calling method into a Runnable whose run() will call the calling
-     * method with (false) as the only argument.
-     */
-    private Runner wrapMe() {
-        final String name;
-        try {
-            throw new Exception();
-        } catch (Exception ex) {
-            name = ex.getStackTrace()[1].getMethodName();
-        }
-        Method[] methods = getClass().getDeclaredMethods();
-        Method m = null;
-        for (int i = 0; i < methods.length; i++)
-            if (methods[i].getName().equals(name)) {
-                m = methods[i];
-                break;
-            }
-        if (m == null) {
-            throw new IllegalStateException("Missing method " + name);
-        }
-
-        final Method method = m;
-        return new Runner() {
-
-            private static final long serialVersionUID = 0;
-
-            @Override
-            public void run() {
-                try {
-                    method.setAccessible(true);
-                    method.invoke(VizGUI.this, new Object[] {});
-                } catch (Throwable ex) {
-                    ex = new IllegalArgumentException("Failed call to " + name + "()", ex);
-                    Thread.getDefaultUncaughtExceptionHandler().uncaughtException(Thread.currentThread(), ex);
-                }
-            }
-
-            @Override
-            public void run(Object arg) {
-                run();
-            }
-        };
-    }
-
-    /**
-     * Wraps the calling method into a Runnable whose run() will call the calling
-     * method with (false,argument) as the two arguments.
-     */
-    private Runner wrapMe(final Object argument) {
-        final String name;
-        try {
-            throw new Exception();
-        } catch (Exception ex) {
-            name = ex.getStackTrace()[1].getMethodName();
-        }
-        Method[] methods = getClass().getDeclaredMethods();
-        Method m = null;
-        for (int i = 0; i < methods.length; i++)
-            if (methods[i].getName().equals(name)) {
-                m = methods[i];
-                break;
-            }
-
-        if (m == null) {
-            throw new IllegalStateException("Missing method " + name);
-        }
-
-        final Method method = m;
-        return new Runner() {
-
-            private static final long serialVersionUID = 0;
-
-            @Override
-            public void run(Object arg) {
-                try {
-                    method.setAccessible(true);
-                    method.invoke(VizGUI.this, new Object[] {
-                                                             arg
-                    });
-                } catch (Throwable ex) {
-                    ex = new IllegalArgumentException("Failed call to " + name + "(" + arg + ")", ex);
-                    Thread.getDefaultUncaughtExceptionHandler().uncaughtException(Thread.currentThread(), ex);
-                }
-            }
-
-            @Override
-            public void run() {
-                run(argument);
-            }
-        };
-    }
-
-    /**
      * Creates a new visualization GUI window; this method can only be called by the
      * AWT event thread.
      *
@@ -562,28 +455,23 @@ public final class VizGUI implements ComponentListener {
 
         // Create the menubar
         JMenuBar mb = new JMenuBar();
-        try {
-            wrap = true;
-            JMenu fileMenu = menu(mb, "&File", null);
-            menuItem(fileMenu, "Open...", 'O', 'O', doLoad());
-            JMenu exportMenu = menu(null, "&Export To", null);
-            menuItem(exportMenu, "Dot...", 'D', 'D', doExportDot());
-            menuItem(exportMenu, "XML...", 'X', 'X', doExportXml());
-            fileMenu.add(exportMenu);
-            menuItem(fileMenu, "Close", 'W', 'W', doClose());
-            if (standalone)
-                menuItem(fileMenu, "Quit", 'Q', 'Q', doCloseAll());
-            else
-                menuItem(fileMenu, "Close All", 'A', doCloseAll());
-            JMenu instanceMenu = menu(mb, "&Instance", null);
-            enumerateMenu = menuItem(instanceMenu, "Show Next Solution", 'N', 'N', doNext());
-            thememenu = menu(mb, "&Theme", doRefreshTheme());
-            if (standalone || windowmenu == null)
-                windowmenu = menu(mb, "&Window", doRefreshWindow());
-            this.windowmenu = windowmenu;
-        } finally {
-            wrap = false;
-        }
+        JMenu fileMenu = menu(mb, "&File", null);
+        menuItem(fileMenu, "Open...", 'O', 'O', (ActionListener) e -> doLoad());
+        JMenu exportMenu = menu(null, "&Export To", null);
+        menuItem(exportMenu, "Dot...", 'D', 'D', (ActionListener) e -> doExportDot());
+        menuItem(exportMenu, "XML...", 'X', 'X', (ActionListener) e -> doExportXml());
+        fileMenu.add(exportMenu);
+        menuItem(fileMenu, "Close", 'W', 'W', (ActionListener) e -> doClose());
+        if (standalone)
+            menuItem(fileMenu, "Quit", 'Q', 'Q', (ActionListener) e -> doCloseAll());
+        else
+            menuItem(fileMenu, "Close All", 'A', (ActionListener) e -> doCloseAll());
+        JMenu instanceMenu = menu(mb, "&Instance", null);
+        enumerateMenu = menuItem(instanceMenu, "Show Next Solution", 'N', 'N', (ActionListener) e -> doNext());
+        thememenu = menu(mb, "&Theme", this::doRefreshTheme);
+        if (standalone || windowmenu == null)
+            windowmenu = menu(mb, "&Window", this::doRefreshWindow);
+        this.windowmenu = windowmenu;
         mb.add(windowmenu);
         thememenu.setEnabled(false);
         windowmenu.setEnabled(false);
@@ -593,14 +481,10 @@ public final class VizGUI implements ComponentListener {
         // Create the toolbar
         projectionPopup = new JPopupMenu();
         projectionButton = new JButton("Projection: none");
-        projectionButton.addActionListener(new ActionListener() {
-
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                repopulateProjectionPopup();
-                if (projectionPopup.getComponentCount() > 0)
-                    projectionPopup.show(projectionButton, 10, 10);
-            }
+        projectionButton.addActionListener(e -> {
+            repopulateProjectionPopup();
+            if (projectionPopup.getComponentCount() > 0)
+                projectionPopup.show(projectionButton, 10, 10);
         });
         repopulateProjectionPopup();
         toolbar = new JToolBar();
@@ -609,33 +493,28 @@ public final class VizGUI implements ComponentListener {
         toolbar.setBorder(null);
         if (!Util.onMac())
             toolbar.setBackground(background);
-        try {
-            wrap = true;
-            vizButton = makeSolutionButton("Viz", "Show Visualization", "images/24_graph.gif", doShowViz());
-            // dotButton=makeSolutionButton("Dot", "Show the Dot File for the
-            // Graph", "images/24_plaintext.gif", doShowDot());
-            // xmlButton=makeSolutionButton("XML", "Show XML",
-            // "images/24_plaintext.gif", doShowXML());
-            txtButton = makeSolutionButton("Txt", "Show the textual output for the Graph", "images/24_plaintext.gif", doShowTxt());
-            tableButton = makeSolutionButton("Table", "Show the table output for the Graph", "images/24_plaintext.gif", doShowTable());
-            treeButton = makeSolutionButton("Tree", "Show Tree", "images/24_texttree.gif", doShowTree());
-            if (frame != null)
-                addDivider();
-            toolbar.add(closeSettingsButton = OurUtil.button("Close", "Close the theme customization panel", "images/24_settings_close2.gif", doCloseThemePanel()));
-            toolbar.add(updateSettingsButton = OurUtil.button("Apply", "Apply the changes to the current theme", "images/24_settings_apply2.gif", doApply()));
-            toolbar.add(openSettingsButton = OurUtil.button("Theme", "Open the theme customization panel", "images/24_settings.gif", doOpenThemePanel()));
-            toolbar.add(magicLayout = OurUtil.button("Magic Layout", "Automatic theme customization (will reset current theme)", "images/24_settings_apply2.gif", doMagicLayout()));
-            toolbar.add(openEvaluatorButton = OurUtil.button("Evaluator", "Open the evaluator", "images/24_settings.gif", doOpenEvalPanel()));
-            toolbar.add(closeEvaluatorButton = OurUtil.button("Close Evaluator", "Close the evaluator", "images/24_settings_close2.gif", doCloseEvalPanel()));
-            toolbar.add(enumerateButton = OurUtil.button("Next", "Show the next solution", "images/24_history.gif", doNext()));
-            toolbar.add(projectionButton);
-            toolbar.add(loadSettingsButton = OurUtil.button("Load", "Load the theme customization from a theme file", "images/24_open.gif", doLoadTheme()));
-            toolbar.add(saveSettingsButton = OurUtil.button("Save", "Save the current theme customization", "images/24_save.gif", doSaveTheme()));
-            toolbar.add(saveAsSettingsButton = OurUtil.button("Save As", "Save the current theme customization as a new theme file", "images/24_save.gif", doSaveThemeAs()));
-            toolbar.add(resetSettingsButton = OurUtil.button("Reset", "Reset the theme customization", "images/24_settings_close2.gif", doResetTheme()));
-        } finally {
-            wrap = false;
-        }
+        vizButton = makeSolutionButton("Viz", "Show Visualization", "images/24_graph.gif", (ActionListener) e -> doShowViz());
+        // dotButton=makeSolutionButton("Dot", "Show the Dot File for the
+        // Graph", "images/24_plaintext.gif", (ActionListener) e -> doShowDot());
+        // xmlButton=makeSolutionButton("XML", "Show XML",
+        // "images/24_plaintext.gif", (ActionListener) e -> doShowXML());
+        txtButton = makeSolutionButton("Txt", "Show the textual output for the Graph", "images/24_plaintext.gif", (ActionListener) e -> doShowTxt());
+        tableButton = makeSolutionButton("Table", "Show the table output for the Graph", "images/24_plaintext.gif", (ActionListener) e -> doShowTable());
+        treeButton = makeSolutionButton("Tree", "Show Tree", "images/24_texttree.gif", (ActionListener) e -> doShowTree());
+        if (frame != null)
+            addDivider();
+        toolbar.add(closeSettingsButton = OurUtil.button("Close", "Close the theme customization panel", "images/24_settings_close2.gif", (ActionListener) e -> doCloseThemePanel()));
+        toolbar.add(updateSettingsButton = OurUtil.button("Apply", "Apply the changes to the current theme", "images/24_settings_apply2.gif", (ActionListener) e -> doApply()));
+        toolbar.add(openSettingsButton = OurUtil.button("Theme", "Open the theme customization panel", "images/24_settings.gif", (ActionListener) e -> doOpenThemePanel()));
+        toolbar.add(magicLayout = OurUtil.button("Magic Layout", "Automatic theme customization (will reset current theme)", "images/24_settings_apply2.gif", (ActionListener) e -> doMagicLayout()));
+        toolbar.add(openEvaluatorButton = OurUtil.button("Evaluator", "Open the evaluator", "images/24_settings.gif", (ActionListener) e -> doOpenEvalPanel()));
+        toolbar.add(closeEvaluatorButton = OurUtil.button("Close Evaluator", "Close the evaluator", "images/24_settings_close2.gif", (ActionListener) e -> doCloseEvalPanel()));
+        toolbar.add(enumerateButton = OurUtil.button("Next", "Show the next solution", "images/24_history.gif", (ActionListener) e -> doNext()));
+        toolbar.add(projectionButton);
+        toolbar.add(loadSettingsButton = OurUtil.button("Load", "Load the theme customization from a theme file", "images/24_open.gif", (ActionListener) e -> doLoadTheme()));
+        toolbar.add(saveSettingsButton = OurUtil.button("Save", "Save the current theme customization", "images/24_save.gif", (ActionListener) e -> doSaveTheme()));
+        toolbar.add(saveAsSettingsButton = OurUtil.button("Save As", "Save the current theme customization as a new theme file", "images/24_save.gif", (ActionListener) e -> doSaveThemeAs()));
+        toolbar.add(resetSettingsButton = OurUtil.button("Reset", "Reset the theme customization", "images/24_settings_close2.gif", (ActionListener) e -> doResetTheme()));
         settingsOpen = 0;
 
         // Create the horizontal split pane
@@ -672,12 +551,12 @@ public final class VizGUI implements ComponentListener {
             frame.setSize(width, height);
             frame.setLocation(x, y);
             frame.setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
-            try {
-                wrap = true;
-                frame.addWindowListener(doClose());
-            } finally {
-                wrap = false;
-            }
+            frame.addWindowListener(new WindowAdapter() {
+                @Override
+                public void windowClosing(WindowEvent e) {
+                    doClose();
+                }
+            });
             frame.addComponentListener(this);
         }
         if (xmlFileName.length() > 0)
@@ -726,16 +605,12 @@ public final class VizGUI implements ComponentListener {
             if (myState.canProject(t)) {
                 final boolean on = projected.contains(t);
                 final JMenuItem m = new JMenuItem(t.getName(), on ? OurCheckbox.ON : OurCheckbox.OFF);
-                m.addActionListener(new ActionListener() {
-
-                    @Override
-                    public void actionPerformed(ActionEvent e) {
-                        if (on)
-                            myState.deproject(t);
-                        else
-                            myState.project(t);
-                        updateDisplay();
-                    }
+                m.addActionListener(e -> {
+                    if (on)
+                        myState.deproject(t);
+                    else
+                        myState.project(t);
+                    updateDisplay();
                 });
                 projectionPopup.add(m);
                 if (on) {
@@ -1110,24 +985,19 @@ public final class VizGUI implements ComponentListener {
     /**
      * This method asks the user for a new XML instance file to load.
      */
-    private Runner doLoad() {
-        if (wrap)
-            return wrapMe();
+    private void doLoad() {
         File file = OurDialog.askFile(true, null, ".xml", ".xml instance files");
         if (file == null)
-            return null;
+            return;
         Util.setCurrentDirectory(file.getParentFile());
         loadXML(file.getPath(), true);
-        return null;
     }
 
     /**
      * This method loads a new XML instance file if it's not the current file.
      */
-    private Runner doLoadInstance(String fileName) {
-        if (!wrap)
-            loadXML(fileName, false);
-        return wrapMe(fileName);
+    private void doLoadInstance(String fileName) {
+        loadXML(fileName, false);
     }
 
     /**
@@ -1136,141 +1006,116 @@ public final class VizGUI implements ComponentListener {
      * invisible (if not in standalone mode), or it will terminate the entire
      * application (if in standalone mode).
      */
-    private Runner doClose() {
-        if (wrap)
-            return wrapMe();
+    private void doClose() {
         xmlLoaded.remove(xmlFileName);
         if (xmlLoaded.size() > 0) {
             doLoadInstance(xmlLoaded.get(xmlLoaded.size() - 1));
-            return null;
+            return;
         }
         if (standalone)
             System.exit(0);
         else if (frame != null)
             frame.setVisible(false);
-        return null;
+        return;
     }
 
     /**
      * This method closes every XML file. If in standalone mode, the JVM will then
      * shutdown, otherwise it will just set the window invisible.
      */
-    private Runner doCloseAll() {
-        if (wrap)
-            return wrapMe();
+    private void doCloseAll() {
         xmlLoaded.clear();
         xmlFileName = "";
         if (standalone)
             System.exit(0);
         else if (frame != null)
             frame.setVisible(false);
-        return null;
+        return;
     }
 
     /** This method refreshes the "theme" menu. */
-    private Runner doRefreshTheme() {
-        if (wrap)
-            return wrapMe();
+    private void doRefreshTheme() {
         String defaultTheme = System.getProperty("alloy.theme0");
         thememenu.removeAll();
-        try {
-            wrap = true;
-            menuItem(thememenu, "Load Theme...", 'L', doLoadTheme());
-            if (defaultTheme != null && defaultTheme.length() > 0 && (new File(defaultTheme)).isDirectory())
-                menuItem(thememenu, "Load Sample Theme...", 'B', doLoadSampleTheme());
-            menuItem(thememenu, "Save Theme", 'S', doSaveTheme());
-            menuItem(thememenu, "Save Theme As...", 'A', doSaveThemeAs());
-            menuItem(thememenu, "Reset Theme", 'R', doResetTheme());
-        } finally {
-            wrap = false;
-        }
-        return null;
+        menuItem(thememenu, "Load Theme...", 'L', (ActionListener) e -> doLoadTheme());
+        if (defaultTheme != null && defaultTheme.length() > 0 && (new File(defaultTheme)).isDirectory())
+            menuItem(thememenu, "Load Sample Theme...", 'B', (ActionListener) e -> doLoadSampleTheme());
+        menuItem(thememenu, "Save Theme", 'S', (ActionListener) e -> doSaveTheme());
+        menuItem(thememenu, "Save Theme As...", 'A', (ActionListener) e -> doSaveThemeAs());
+        menuItem(thememenu, "Reset Theme", 'R', (ActionListener) e -> doResetTheme());
     }
 
     /**
      * This method asks the user for a new theme file to load.
      */
-    private Runner doLoadTheme() {
-        if (wrap)
-            return wrapMe();
+    private void doLoadTheme() {
         String defaultTheme = System.getProperty("alloy.theme0");
         if (defaultTheme == null)
             defaultTheme = "";
         if (myState == null)
-            return null; // Can only load if there is a VizState loaded
+            return; // Can only load if there is a VizState loaded
         if (myState.changedSinceLastSave()) {
             char opt = OurDialog.askSaveDiscardCancel("The current theme");
             if (opt == 'c')
-                return null;
+                return;
             if (opt == 's' && !saveThemeFile(thmFileName.length() == 0 ? null : thmFileName))
-                return null;
+                return;
         }
         File file = OurDialog.askFile(true, null, ".thm", ".thm theme files");
         if (file != null) {
             Util.setCurrentDirectory(file.getParentFile());
             loadThemeFile(file.getPath());
         }
-        return null;
     }
 
     /**
      * This method asks the user for a new theme file (from the default Alloy4
      * distribution) to load.
      */
-    private Runner doLoadSampleTheme() {
-        if (wrap)
-            return wrapMe();
+    private void doLoadSampleTheme() {
         String defaultTheme = System.getProperty("alloy.theme0");
         if (defaultTheme == null)
             defaultTheme = "";
         if (myState == null)
-            return null; // Can only load if there is a VizState loaded
+            return; // Can only load if there is a VizState loaded
         if (myState.changedSinceLastSave()) {
             char opt = OurDialog.askSaveDiscardCancel("The current theme");
             if (opt == 'c')
-                return null;
+                return;
             if (opt == 's' && !saveThemeFile(thmFileName.length() == 0 ? null : thmFileName))
-                return null;
+                return;
         }
         File file = OurDialog.askFile(true, defaultTheme, ".thm", ".thm theme files");
         if (file != null)
             loadThemeFile(file.getPath());
-        return null;
     }
 
     /** This method saves the current theme. */
-    private Runner doSaveTheme() {
-        if (!wrap)
-            saveThemeFile(thmFileName.length() == 0 ? null : thmFileName);
-        return wrapMe();
+    private void doSaveTheme() {
+        saveThemeFile(thmFileName.length() == 0 ? null : thmFileName);
     }
 
     /**
      * This method saves the current theme to a new ".thm" file.
      */
-    private Runner doSaveThemeAs() {
-        if (wrap)
-            return wrapMe();
+    private void doSaveThemeAs() {
         File file = OurDialog.askFile(false, null, ".thm", ".thm theme files");
         if (file == null)
-            return null;
+            return;
         if (file.exists())
             if (!OurDialog.askOverwrite(Util.canon(file.getPath())))
-                return null;
+                return;
         Util.setCurrentDirectory(file.getParentFile());
         saveThemeFile(file.getPath());
-        return null;
     }
 
-    private Runner doExportDot() {
-        if (wrap)
-            return wrapMe();
+    private void doExportDot() {
         File file = OurDialog.askFile(false, null, ".dot", ".dot graph files");
         if (file == null)
-            return null;
+            return;
         if (file.exists())
             if (!OurDialog.askOverwrite(Util.canon(file.getPath())))
-                return null;
+                return;
         Util.setCurrentDirectory(file.getParentFile());
         String filename = Util.canon(file.getPath());
         try {
@@ -1278,18 +1123,15 @@ public final class VizGUI implements ComponentListener {
         } catch (Throwable er) {
             OurDialog.alert("Error saving the theme.\n\nError: " + er.getMessage());
         }
-        return null;
     }
 
-    private Runner doExportXml() {
-        if (wrap)
-            return wrapMe();
+    private void doExportXml() {
         File file = OurDialog.askFile(false, null, ".xml", ".xml XML files");
         if (file == null)
-            return null;
+            return;
         if (file.exists())
             if (!OurDialog.askOverwrite(Util.canon(file.getPath())))
-                return null;
+                return;
         Util.setCurrentDirectory(file.getParentFile());
         String filename = Util.canon(file.getPath());
         try {
@@ -1297,17 +1139,14 @@ public final class VizGUI implements ComponentListener {
         } catch (Throwable er) {
             OurDialog.alert("Error saving XML instance.\n\nError: " + er.getMessage());
         }
-        return null;
     }
 
     /** This method resets the current theme. */
-    private Runner doResetTheme() {
-        if (wrap)
-            return wrapMe();
+    private void doResetTheme() {
         if (myState == null)
-            return null;
+            return;
         if (!OurDialog.yesno("Are you sure you wish to clear all your customizations?", "Yes, clear them", "No, keep them"))
-            return null;
+            return;
         myState.resetTheme();
         repopulateProjectionPopup();
         if (myCustomPanel != null)
@@ -1316,19 +1155,16 @@ public final class VizGUI implements ComponentListener {
             myGraphPanel.remakeAll();
         thmFileName = "";
         updateDisplay();
-        return null;
     }
 
     /**
      * This method modifies the theme using a set of heuristics.
      */
-    private Runner doMagicLayout() {
-        if (wrap)
-            return wrapMe();
+    private void doMagicLayout() {
         if (myState == null)
-            return null;
+            return;
         if (!OurDialog.yesno("This will clear your original customizations. Are you sure?", "Yes, clear them", "No, keep them"))
-            return null;
+            return;
         myState.resetTheme();
         try {
             MagicLayout.magic(myState);
@@ -1340,65 +1176,47 @@ public final class VizGUI implements ComponentListener {
         if (myGraphPanel != null)
             myGraphPanel.remakeAll();
         updateDisplay();
-        return null;
     }
 
     /** This method refreshes the "window" menu. */
-    private Runner doRefreshWindow() {
-        if (wrap)
-            return wrapMe();
+    private void doRefreshWindow() {
         windowmenu.removeAll();
-        try {
-            wrap = true;
-            for (final String f : getInstances()) {
-                JMenuItem it = new JMenuItem("Instance: " + getInstanceTitle(f), null);
-                it.setIcon(f.equals(getXMLfilename()) ? iconYes : iconNo);
-                it.addActionListener(doLoadInstance(f));
-                windowmenu.add(it);
-            }
-        } finally {
-            wrap = false;
+        for (final String f : getInstances()) {
+            JMenuItem it = new JMenuItem("Instance: " + getInstanceTitle(f), null);
+            it.setIcon(f.equals(getXMLfilename()) ? iconYes : iconNo);
+            it.addActionListener(e -> doLoadInstance(f));
+            windowmenu.add(it);
         }
-        return null;
     }
 
     /**
      * This method inserts "Minimize" and "Maximize" entries into a JMenu.
      */
     public void addMinMaxActions(JMenu menu) {
-        try {
-            wrap = true;
-            menuItem(menu, "Minimize", 'M', doMinimize(), iconNo);
-            menuItem(menu, "Zoom", doZoom(), iconNo);
-        } finally {
-            wrap = false;
-        }
+        menuItem(menu, "Minimize", 'M', (ActionListener) e -> doMinimize(), iconNo);
+        menuItem(menu, "Zoom", (ActionListener) e -> doZoom(), iconNo);
     }
 
     /** This method minimizes the window. */
-    private Runner doMinimize() {
-        if (!wrap && frame != null)
+    private void doMinimize() {
+        if (frame != null)
             OurUtil.minimize(frame);
-        return wrapMe();
     }
 
     /**
      * This method alternatingly maximizes or restores the window.
      */
-    private Runner doZoom() {
-        if (!wrap && frame != null)
+    private void doZoom() {
+        if (frame != null)
             OurUtil.zoom(frame);
-        return wrapMe();
     }
 
     /**
      * This method attempts to derive the next satisfying instance.
      */
-    private Runner doNext() {
-        if (wrap)
-            return wrapMe();
+    private void doNext() {
         if (settingsOpen != 0)
-            return null;
+            return;
         if (xmlFileName.length() == 0) {
             OurDialog.alert("Cannot display the next solution since no instance is currently loaded.");
         } else if (enumerator == null) {
@@ -1410,113 +1228,82 @@ public final class VizGUI implements ComponentListener {
                 OurDialog.alert(ex.getMessage());
             }
         }
-        return null;
     }
 
     /**
      * This method updates the graph with the current theme customization.
      */
-    private Runner doApply() {
-        if (!wrap)
-            updateDisplay();
-        return wrapMe();
+    private void doApply() {
+        updateDisplay();
     }
 
     /**
      * This method opens the theme customization panel if closed.
      */
-    private Runner doOpenThemePanel() {
-        if (!wrap) {
-            settingsOpen = 1;
-            updateDisplay();
-        }
-        return wrapMe();
+    private void doOpenThemePanel() {
+        settingsOpen = 1;
+        updateDisplay();
     }
 
     /**
      * This method closes the theme customization panel if open.
      */
-    private Runner doCloseThemePanel() {
-        if (!wrap) {
-            settingsOpen = 0;
-            updateDisplay();
-        }
-        return wrapMe();
+    private void doCloseThemePanel() {
+        settingsOpen = 0;
+        updateDisplay();
     }
 
     /** This method opens the evaluator panel if closed. */
-    private Runner doOpenEvalPanel() {
-        if (!wrap) {
-            settingsOpen = 2;
-            updateDisplay();
-        }
-        return wrapMe();
+    private void doOpenEvalPanel() {
+        settingsOpen = 2;
+        updateDisplay();
     }
 
     /** This method closes the evaluator panel if open. */
-    private Runner doCloseEvalPanel() {
-        if (!wrap) {
-            settingsOpen = 0;
-            updateDisplay();
-        }
-        return wrapMe();
+    private void doCloseEvalPanel() {
+        settingsOpen = 0;
+        updateDisplay();
     }
 
     /**
      * This method changes the display mode to show the instance as a graph (the
      * return value is always null).
      */
-    public Runner doShowViz() {
-        if (!wrap) {
-            currentMode = VisualizerMode.Viz;
-            updateDisplay();
-            return null;
-        }
-        return wrapMe();
+    public void doShowViz() {
+        currentMode = VisualizerMode.Viz;
+        updateDisplay();
     }
 
     /**
      * This method changes the display mode to show the instance as a tree (the
      * return value is always null).
      */
-    public Runner doShowTree() {
-        if (!wrap) {
-            currentMode = VisualizerMode.Tree;
-            updateDisplay();
-            return null;
-        }
-        return wrapMe();
+    public void doShowTree() {
+        currentMode = VisualizerMode.Tree;
+        updateDisplay();
     }
 
     /**
      * This method changes the display mode to show the equivalent dot text (the
      * return value is always null).
      */
-    public Runner doShowTxt() {
-        if (!wrap) {
-            currentMode = VisualizerMode.TEXT;
-            updateDisplay();
-            return null;
-        }
-        return wrapMe();
+    public void doShowTxt() {
+        currentMode = VisualizerMode.TEXT;
+        updateDisplay();
     }
 
     /**
      * This method changes the display mode to show the equivalent dot text (the
      * return value is always null).
      */
-    public Runner doShowTable() {
-        if (!wrap) {
-            currentMode = VisualizerMode.TABLE;
-            updateDisplay();
-            return null;
-        }
-        return wrapMe();
+    public void doShowTable() {
+        currentMode = VisualizerMode.TABLE;
+        updateDisplay();
     }
 
     // /** This method changes the display mode to show the equivalent dot text
     // (the return value is always null). */
-    // public Runner doShowDot() {
+    // public void doShowDot() {
     // if (!wrap) { currentMode=VisualizerMode.DOT; updateDisplay(); return
     // null; }
     // return wrapMe();
@@ -1524,7 +1311,7 @@ public final class VizGUI implements ComponentListener {
     //
     // /** This method changes the display mode to show the instance as XML (the
     // return value is always null). */
-    // public Runner doShowXML() {
+    // public void doShowXML() {
     // if (!wrap) { currentMode=VisualizerMode.XML; updateDisplay(); return
     // null; }
     // return wrapMe();
