@@ -556,11 +556,6 @@ public class A4Preferences {
     /** Look and feel */
     public static final StringChoicePref             LAF                    = new StringChoicePref("LAF", "Look and feel", Arrays.asList("Native", "Cross-platform"), Util.onMac() || Util.onWindows() ? "Native" : "Cross-platform");
 
-    /**
-     * Whether syntax highlighting should be disabled or not.
-     */
-    public static final BooleanPref                  SyntaxDisabled         = new BooleanPref("SyntaxHighlightingDisabled", "Disable syntax highlighting");
-
     /** The number of recursion unrolls. */
     public static final IntChoicePref                Unrolls                = new IntChoicePref("Unrolls", "Recursion depth", Arrays.asList(-1, 0, 1, 2, 3), -1) {
 

@@ -14,7 +14,6 @@ import static edu.mit.csail.sdg.alloy4.A4Preferences.SkolemDepth;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.Solver;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.SubMemory;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.SubStack;
-import static edu.mit.csail.sdg.alloy4.A4Preferences.SyntaxDisabled;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.TabSize;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.Unrolls;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.VerbosityPref;
@@ -368,7 +367,6 @@ public class PreferencesDialog extends JFrame {
 
     protected Component initEditorPane() {
         JPanel p = OurUtil.makeGrid(2, gbc().make(), mkCombo(FontName), mkCombo(FontSize), mkCombo(TabSize));
-        addToGrid(p, mkCheckBox(SyntaxDisabled), gbc().pos(0, 3).gridwidth(2));
 
         // JPanel p = new JPanel(new GridBagLayout());
         // addToGrid(p, mkCheckBox(SyntaxDisabled), gbc().pos(0,

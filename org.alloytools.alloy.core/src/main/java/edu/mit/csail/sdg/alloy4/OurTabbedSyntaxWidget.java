@@ -79,11 +79,6 @@ public final class OurTabbedSyntaxWidget {
     /** The tabsize to use in the JTextArea */
     private int                         tabSize              = 4;
 
-    /**
-     * Whether syntax highlighting is current enabled or not.
-     */
-    private boolean                     syntaxHighlighting;
-
     /** The list of clickable tabs. */
     private final JPanel                tabBar;
 
@@ -365,13 +360,6 @@ public final class OurTabbedSyntaxWidget {
             t.setFont(name, size, tabSize);
     }
 
-    /** Enables or disables syntax highlighting. */
-    public void enableSyntax(boolean flag) {
-        syntaxHighlighting = flag;
-        for (OurSyntaxWidget t : tabs)
-            t.enableSyntax(flag);
-    }
-
     /** Returns the JTextArea of the current text buffer. */
     public OurSyntaxWidget get() {
         return (me >= 0 && me < tabs.size()) ? tabs.get(me) : new OurSyntaxWidget(this);
@@ -433,7 +421,10 @@ public final class OurTabbedSyntaxWidget {
         JPanel pan = Util.onMac() ? OurUtil.makeVL(null, 2, OurUtil.makeHB(h1, lb, h2)) : OurUtil.makeVL(null, 2, OurUtil.makeHB(h1, lb, h2, GRAY), GRAY);
         pan.setAlignmentX(0.0f);
         pan.setAlignmentY(1.0f);
-        OurSyntaxWidget text = new OurSyntaxWidget(this, syntaxHighlighting, "", fontName, fontSize, tabSize, lb, pan);
+        /**
+         * Whether syntax highlighting is current enabled or not.
+         */
+        OurSyntaxWidget text = new OurSyntaxWidget(this, "", fontName, fontSize, tabSize, lb, pan);
         tabBar.add(pan, tabs.size());
         tabs.add(text);
         text.listeners.add(listener); // add listener AFTER we've updated

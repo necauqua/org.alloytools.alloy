@@ -122,7 +122,7 @@ public final class OurSyntaxWidget {
      * Constructs a syntax-highlighting widget.
      */
     public OurSyntaxWidget(OurTabbedSyntaxWidget parent) {
-        this(parent, true, "", "Monospaced", 14, 4, null, null);
+        this(parent, "", "Monospaced", 14, 4, null, null);
     }
 
     /**
@@ -131,7 +131,7 @@ public final class OurSyntaxWidget {
      * @param parent
      */
     @SuppressWarnings("serial" )
-    public OurSyntaxWidget(OurTabbedSyntaxWidget parent, boolean enableSyntax, String text, String fontName, int fontSize, int tabSize, JComponent obj1, JComponent obj2) {
+    public OurSyntaxWidget(OurTabbedSyntaxWidget parent, String text, String fontName, int fontSize, int tabSize, JComponent obj1, JComponent obj2) {
         pane.addKeyListener(new KeyListener() {
 
             @Override
@@ -154,7 +154,6 @@ public final class OurSyntaxWidget {
         this.obj2 = obj2;
         final OurSyntaxWidget me = this;
         final ViewFactory defaultFactory = (new StyledEditorKit()).getViewFactory();
-        doc.do_enableSyntax(enableSyntax);
         doc.do_setFont(fontName, fontSize, tabSize);
         pane.setEditorKit(new StyledEditorKit() { // Prevents line-wrapping up
                                                  // to width=30000, and tells
@@ -562,12 +561,6 @@ public final class OurSyntaxWidget {
     void setFont(String fontName, int fontSize, int tabSize) {
         if (doc != null)
             doc.do_setFont(fontName, fontSize, tabSize);
-    }
-
-    /** Enables or disables syntax highlighting. */
-    void enableSyntax(boolean flag) {
-        if (doc != null)
-            doc.do_enableSyntax(flag);
     }
 
     /**

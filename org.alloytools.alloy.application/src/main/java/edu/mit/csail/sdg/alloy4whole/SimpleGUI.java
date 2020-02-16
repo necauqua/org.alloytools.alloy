@@ -37,7 +37,6 @@ import static edu.mit.csail.sdg.alloy4.A4Preferences.SkolemDepth;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.Solver;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.SubMemory;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.SubStack;
-import static edu.mit.csail.sdg.alloy4.A4Preferences.SyntaxDisabled;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.TabSize;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.Unrolls;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.VerbosityPref;
@@ -1406,7 +1405,6 @@ public final class SimpleGUI implements ComponentListener, Listener {
 
             optmenu.addSeparator();
 
-            addToMenu(optmenu, SyntaxDisabled);
             addToMenu(optmenu, FontSize);
             menuItem(optmenu, "Font: " + FontName.get() + "...", doOptFontname());
             addToMenu(optmenu, TabSize);
@@ -1461,16 +1459,6 @@ public final class SimpleGUI implements ComponentListener, Listener {
         log.setFontSize(n);
         viz.doSetFontSize(n);
         return null;
-    }
-
-    /**
-     * This method toggles the "syntax highlighting" checkbox.
-     */
-    private Runner doOptSyntaxHighlighting() {
-        if (!wrap) {
-            text.enableSyntax(!SyntaxDisabled.get());
-        }
-        return wrapMe();
     }
 
     // ===============================================================================================================//
@@ -2173,7 +2161,6 @@ public final class SimpleGUI implements ComponentListener, Listener {
         // Create the text area
         text = new OurTabbedSyntaxWidget(fontName, fontSize, TabSize.get());
         text.listeners.add(this);
-        text.enableSyntax(!SyntaxDisabled.get());
 
         // Add everything to the frame, then display the frame
         Container all = frame.getContentPane();
@@ -2227,7 +2214,6 @@ public final class SimpleGUI implements ComponentListener, Listener {
         try {
             wrap = true;
             prefDialog.addChangeListener(wrapToChangeListener(doOptRefreshFont()), FontName, FontSize, TabSize);
-            prefDialog.addChangeListener(wrapToChangeListener(doOptSyntaxHighlighting()), SyntaxDisabled);
             prefDialog.addChangeListener(wrapToChangeListener(doLookAndFeel()), LAF);
         } finally {
             wrap = false;

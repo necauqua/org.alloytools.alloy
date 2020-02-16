@@ -52,11 +52,6 @@ class OurSyntaxDocument extends DefaultStyledDocument {
      */
     private final List<Mode>                comments         = new ArrayList<>();
 
-    /**
-     * Whether syntax highlighting is currently enabled or not.
-     */
-    private boolean                         enabled          = true;
-
     /** The current font name is. */
     private String                          font             = "Monospaced";
 
@@ -218,20 +213,6 @@ class OurSyntaxDocument extends DefaultStyledDocument {
                                                     // tab size
     }
 
-    /** Enables or disables syntax highlighting. */
-    public final void do_enableSyntax(boolean flag) {
-        if (enabled == flag)
-            return;
-        else {
-            enabled = flag;
-            comments.clear();
-        }
-        if (flag)
-            do_reapplyAll();
-        else
-            setCharacterAttributes(0, getLength(), styleNormal, false);
-    }
-
     /**
      * Return the number of lines represented by the current text (where partial
      * line counts as a line).
@@ -290,10 +271,6 @@ class OurSyntaxDocument extends DefaultStyledDocument {
     public void insertString(int offset, String string, AttributeSet attr) throws BadLocationException {
         if (string.indexOf('\r') >= 0)
             string = Util.convertLineBreak(string); // we don't want '\r'
-        if (!enabled) {
-            super.insertString(offset, string, styleNormal);
-            return;
-        }
         int startLine = do_getLineOfOffset(offset);
         for (int i = 0; i < string.length(); i++) { // For each inserted '\n' we
                                                    // need to shift the values
@@ -316,10 +293,6 @@ class OurSyntaxDocument extends DefaultStyledDocument {
      */
     @Override
     public void remove(int offset, int length) throws BadLocationException {
-        if (!enabled) {
-            super.remove(offset, length);
-            return;
-        }
         int i = 0, startLine = do_getLineOfOffset(offset);
         for (String oldText = toString(); i < length; i++) { // For each deleted
                                                             // '\n' we need
