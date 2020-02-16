@@ -508,9 +508,6 @@ public class A4Preferences {
      */
     public static final BooleanPref                  AutoVisualize          = new BooleanPref("AutoVisualize", "Visualize automatically");
 
-    /** True if Alloy Analyzer should insist on antialias. */
-    public static final BooleanPref                  AntiAlias              = new BooleanPref("AntiAlias", "Use anti-aliasing");
-
     /**
      * True if Alloy Analyzer should record the raw Kodkod input and output.
      */

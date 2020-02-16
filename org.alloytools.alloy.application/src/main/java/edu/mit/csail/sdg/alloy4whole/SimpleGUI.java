@@ -19,7 +19,6 @@ import static edu.mit.csail.sdg.alloy4.A4Preferences.AnalyzerHeight;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.AnalyzerWidth;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.AnalyzerX;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.AnalyzerY;
-import static edu.mit.csail.sdg.alloy4.A4Preferences.AntiAlias;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.AutoVisualize;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.CoreGranularity;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.CoreMinimization;
@@ -1411,10 +1410,6 @@ public final class SimpleGUI implements ComponentListener, Listener {
             addToMenu(optmenu, FontSize);
             menuItem(optmenu, "Font: " + FontName.get() + "...", doOptFontname());
             addToMenu(optmenu, TabSize);
-            if (Util.onMac() || Util.onWindows())
-                menuItem(optmenu, "Use anti-aliasing: Yes", false);
-            else
-                addToMenu(optmenu, AntiAlias);
             addToMenu(optmenu, A4Preferences.LAF);
 
             optmenu.addSeparator();
@@ -1466,14 +1461,6 @@ public final class SimpleGUI implements ComponentListener, Listener {
         log.setFontSize(n);
         viz.doSetFontSize(n);
         return null;
-    }
-
-    /** This method toggles the "antialias" checkbox. */
-    private Runner doOptAntiAlias() {
-        if (!wrap) {
-            OurAntiAlias.enableAntiAlias(AntiAlias.get());
-        }
-        return wrapMe();
     }
 
     /**
@@ -1944,6 +1931,10 @@ public final class SimpleGUI implements ComponentListener, Listener {
                 return;
         }
 
+        // these properties must be set in the main thread
+        System.setProperty("awt.useSystemAAFontSettings", "on");
+        System.setProperty("swing.aatext", "true");
+
         SwingUtilities.invokeLater(new Runnable() {
 
             @Override
@@ -2172,9 +2163,6 @@ public final class SimpleGUI implements ComponentListener, Listener {
             wrap = false;
         }
 
-        // Choose the antiAlias setting
-        OurAntiAlias.enableAntiAlias(AntiAlias.get());
-
         // Create the message area
         logpane = OurUtil.scrollpane(null);
         log = new SwingLogPanel(logpane, fontName, fontSize, background, Color.BLACK, new Color(.7f, .2f, .2f), this);
@@ -2239,7 +2227,6 @@ public final class SimpleGUI implements ComponentListener, Listener {
         try {
             wrap = true;
             prefDialog.addChangeListener(wrapToChangeListener(doOptRefreshFont()), FontName, FontSize, TabSize);
-            prefDialog.addChangeListener(wrapToChangeListener(doOptAntiAlias()), AntiAlias);
             prefDialog.addChangeListener(wrapToChangeListener(doOptSyntaxHighlighting()), SyntaxDisabled);
             prefDialog.addChangeListener(wrapToChangeListener(doLookAndFeel()), LAF);
         } finally {

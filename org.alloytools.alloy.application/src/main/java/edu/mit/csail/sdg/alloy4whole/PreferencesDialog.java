@@ -1,6 +1,5 @@
 package edu.mit.csail.sdg.alloy4whole;
 
-import static edu.mit.csail.sdg.alloy4.A4Preferences.AntiAlias;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.AutoVisualize;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.CoreGranularity;
 import static edu.mit.csail.sdg.alloy4.A4Preferences.CoreMinimization;
@@ -370,7 +369,6 @@ public class PreferencesDialog extends JFrame {
     protected Component initEditorPane() {
         JPanel p = OurUtil.makeGrid(2, gbc().make(), mkCombo(FontName), mkCombo(FontSize), mkCombo(TabSize));
         addToGrid(p, mkCheckBox(SyntaxDisabled), gbc().pos(0, 3).gridwidth(2));
-        addToGrid(p, mkCheckBox(AntiAlias), gbc().pos(0, 4).gridwidth(2));
 
         // JPanel p = new JPanel(new GridBagLayout());
         // addToGrid(p, mkCheckBox(SyntaxDisabled), gbc().pos(0,
